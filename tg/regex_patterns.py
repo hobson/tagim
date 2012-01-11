@@ -1,0 +1,166 @@
+#!/usr/bin/env python
+# Filename: tg/patterns.py
+"""Regular expression patterns for interpreting date, time, GPS position, and numerical values in strings
+
+Examples:
+	from tg.regex_patterns import POINT_PATTERN;  POINT_PATTERN.findall("1.5d 50' 30" S 5.5 deg 23.4567 min 156.1 m")
+
+Depends On:
+	re
+	tg ((c) Hobson Lane dba TotalGood)
+
+TODO:
+	POINT_PATTERN still can't interpret triplet of floats as lat/lon/alt rather than deg/min/sec unless units are provided
+	Exponential notation for float or point should require a nubmer or +- immediately preceeding the E
+	  otherwise it can confuse the N/S/E/W interpretation of E. 
+	  Geographic E should always be followed by a whitespace or punctuation, wherease exponent E shouldn't.
+	Examples:
+	>>> mo = POINT_PATTERN.match("1d 50 min 30 sec S 5 deg 23.4567 min 156.1 m")
+	>>> for m in ml:
+	>>>     print "http://maps.google.com/q?{1},{2}".format(m.latitude,m.longitude)
+	http://maps.google.com/q?-1.91,5.35
+"""
+# Filename: tg/patterns.py
+
+# eliminates insidious integer division errors, otherwise '(1.0 + 2/3)' gives 1.0 (in python <3.0)
+from __future__ import division
+
+version = '0.7'
+import re
+import geopy
+
+# Unicode characters for symbols that appear in coordinate strings.
+DEGREE = unichr(176)
+PRIME = unichr(8242)
+DOUBLE_PRIME = unichr(8243)
+ASCII_DEGREE = ''
+ASCII_PRIME = "'"
+ASCII_DOUBLE_PRIME = '"'
+LATIN1_DEGREE = chr(176)
+HTML_DEGREE = '&deg;'
+HTML_PRIME = '&prime;'
+HTML_DOUBLE_PRIME = '&Prime;'
+XML_DECIMAL_DEGREE = '&#176;'
+XML_DECIMAL_PRIME = '&#8242;'
+XML_DECIMAL_DOUBLE_PRIME = '&#8243;'
+XML_HEX_DEGREE = '&xB0;'
+XML_HEX_PRIME = '&x2032;'
+XML_HEX_DOUBLE_PRIME = '&x2033;'
+ABBR_DEGREE = 'deg'
+ABBR_ARCMIN = 'arcmin'
+ABBR_ARCSEC = 'arcsec'
+ABBR_N = 'n|north'
+ABBR_S = 's|south'
+ABBR_E = 'e|east'
+ABBR_W = 'w|west'
+FOUR_WINDS = '(ABBR_N|ABBR_S|ABBR_E|ABBR_W)'
+FOUR_WINDS_POS = 'ABBR_N|ABBR_E'
+FOUR_WINDS_NEG = 'ABBR_S|ABBR_W'
+FOUR_WINDS_LAT = 'ABBR_N|ABBR_S'
+FOUR_WINDS_LON = 'ABBR_E|ABBR_W'
+
+DEGREES_FORMAT = "%(degrees)d%(deg)s %(minutes)d%(arcmin)s %(seconds)s%(arcsec)s"
+UNICODE_SYMBOLS = {'deg': DEGREE, 'arcmin': PRIME, 'arcsec': DOUBLE_PRIME}
+ASCII_SYMBOLS = {'deg': ASCII_DEGREE, 'arcmin': ASCII_PRIME, 'arcsec': ASCII_DOUBLE_PRIME}
+LATIN1_SYMBOLS = {'deg': LATIN1_DEGREE, 'arcmin': ASCII_PRIME, 'arcsec': ASCII_DOUBLE_PRIME}
+HTML_SYMBOLS = {'deg': HTML_DEGREE, 'arcmin': HTML_PRIME, 'arcsec': HTML_DOUBLE_PRIME}
+XML_SYMBOLS = {'deg': XML_DECIMAL_DEGREE, 'arcmin': XML_DECIMAL_PRIME, 'arcsec': XML_DECIMAL_DOUBLE_PRIME}
+ABBR_SYMBOLS = {'deg': ABBR_DEGREE, 'arcmin': ABBR_ARCMIN, 'arcsec': ABBR_ARCSEC}
+
+# should I use QUANT PATTERNS or UTIL PATTERNS
+UTIL_PATTERNS = dict(
+	# HL: added sign, spacing, & exponential notation: 1.2E3 or +1.2 e -3
+	FLOAT           = r'[+-]?\d+(?:\.\d+)?(?:\s?[eE]\s?[+-]?\d+)?', 
+	FLOAT_NONEG     =  r'[+]?\d+(?:\.\d+)?(?:\s?[eE]\s?[+-]?\d+)?', 
+	FLOAT_NOSIGN    =      r'\d+(?:\.\d+)?(?:\s?[eE]\s?[+-]?\d+)?', 
+	# HL: added sign and exponential notation: +1e6 -100 e +3
+	INT             = r'[+-]?\d+(?:\s?[eE]\s?[+]?\d+)?', 
+	INT_NONEG       =  r'[+]?\d+(?:\s?[eE]\s?[+]?\d+)?', 
+	INT_NOSIGN      =      r'\d+(?:\s?[eE]\s?[+]?\d+)?', # HL: exponents should always be allowed a sign
+	DEGREE          = geopy.format.DEGREE, 
+	PRIME           = geopy.format.PRIME, 
+	DOUBLE_PRIME    = geopy.format.DOUBLE_PRIME, 
+	SEP             = r'\s*[,;\s]\s*', 
+	DEGREE_SYM      =       r'['+geopy.format.DEGREE      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
+	ARCMIN_SYM      = r'(?:arc|Arc|ARC)?['+geopy.format.PRIME       +r"'Mm][Ii]?[Nn]?", 
+	ARCSEC_SYM      = r'(?:arc|Arc|ARC)?\-?['+geopy.format.DOUBLE_PRIME+r'"Ss?', 
+	)
+
+QUANT_PATTERNS = dict(
+	# HL: added some less common field/column separators: colon, vertical_bar
+	SEP                  = r'\s*[\s,;\|:]\s*', 
+	DATE_SEP             = r'\s*[\s,;\|\-\:\_\/]\s*',
+	TIME_SEP             = r'\s*[\s,;\|\-\:\_]\s*',
+	# HL: added sign, spacing, & exponential notation: 1.2E3 or +1.2 e -3
+	FLOAT                = r'[+-]?\d+(?:\.\d+)?(?:\s?[eE]\s?[+-]?\d+)?', 
+	FLOAT_NONEG          =  r'[+]?\d+(?:\.\d+)?(?:\s?[eE]\s?[+-]?\d+)?', 
+	FLOAT_NOSIGN         =      r'\d+(?:\.\d+)?(?:\s?[eE]\s?[+-]?\d+)?', 
+	# HL: got rid of exponential notation with an E and added x10^-4 or *10^23
+	FLOAT_NOE            = r'[+-]?\d+(?:\.\d+)?(?:\s?[xX*]10\s?\^\s?[+-]?\d+)?', 
+    FLOAT_NONEG_NOE      =  r'[+]?\d+(?:\.\d+)?(?:\s?[xX*]10\s?\^\s?[+-]?\d+)?', 
+    FLOAT_NOSIGN_NOE     =      r'\d+(?:\.\d+)?(?:\s?[xX*]10\s?\^\s?[+-]?\d+)?', 
+	# HL: added sign and exponential notation: +1e6 -100 e +3
+	INT                  = r'[+-]?\d+(?:\s?[eE]\s?[+]?\d+)?',
+	INT_NONEG            =  r'[+]?\d+(?:\s?[eE]\s?[+]?\d+)?',
+	INT_NOSIGN           =      r'\d+(?:\s?[eE]\s?[+]?\d+)?', # HL: exponents should always be allowed a sign 
+	INT_NOSIGN_2DIGIT    = r'\d\d',
+	INT_NOSIGN_4DIGIT    = r'\d\d\d\d',
+	INT_NOSIGN_2OR4DIGIT = r'(?:\d\d){1,2}',
+	DEGREE_SYM           = geopy.format.DEGREE,
+	PRIME_SYM            = geopy.format.PRIME,
+	DOUBLE_PRIME_SYM     = geopy.format.DOUBLE_PRIME,
+#	                                 # HL: whitespace equivalent to deg sym as units indicator
+	DEGREE               =       r'(?:[ ]?['  +geopy.format.DEGREE       +r'd]|[ ]?deg|[ ]?dg|[ ])',
+	# assumes minutes rather than seconds if 'arc' or no other units are given
+	ARCMIN               = r'(?i)(?:arc)?['   +geopy.format.PRIME        +r"'m](?:(?:in|n|inute)[s]?)?", 
+	ARCSEC               = r'(?i)(?:arc)?\-?['+geopy.format.DOUBLE_PRIME +r'"s](?:(?:ec|c|econd)[s]?)?',
+	YEAR                 = r'(?i)(?:1[0-9]|2[012]|[1-9])?\d?\d(?:\s?AD|BC)?',  # 2299 BC - 2299 AD, no sign
+	MONTH                = r'[01]\d',   # 01-12
+	DAY         = r'[0-2]\d|3[01]',     # 01-31
+	HOUR        = r'[0-1]\d|2[0-4]',    # 01-24
+	MINUTE      = r'[0-5]\d',           # 01-59
+	SECOND      = r'[0-5]\d(?:\.\d+)?', # 01-59
+	)
+
+#WARN: each of the lat/lon/alt elements needs to stop and not worry about armin/arcsec as soon as they get a decimal point, especially if no arcmin or arcsec units are given
+#TODO: to avoid ambiguity just require arcmin/arcsec units indicators rather than allowing a sequence of floats to be interpreted as d,m,s
+POINT_PATTERN = re.compile(r"""
+	\s*
+	(?P<latitude>
+		(?P<latitude_degrees>%(FLOAT_NOE)s)[ ]?(?:%(DEGREE)s[ ]*
+			(?:(?P<latitude_arcminutes>%(FLOAT_NONEG_NOE)s)[ ]?%(ARCMIN)s[ ]*)?
+			(?:(?P<latitude_arcseconds>%(FLOAT_NONEG_NOE)s)[ ]?%(ARCSEC)s[ ]*)?
+		)?\s*(?P<latitude_direction>[NS])?)
+	%(SEP)s
+	(?P<longitude>
+		(?P<longitude_degrees>%(FLOAT)s)[ ]?(?:%(DEGREE)s[ ]*
+			(?:(?P<longitude_arcminutes>%(FLOAT_NONEG_NOE)s)[ ]?%(ARCMIN)s[ ]*)?
+			(?:(?P<longitude_arcseconds>%(FLOAT_NONEG_NOE)s)[ ]?%(ARCSEC)s[ ]*)?
+		)?\s*(?P<longitude_direction>[EW])?)
+	(?:
+		%(SEP)s
+			(?P<altitude>
+				(?P<altitude_distance>-?%(FLOAT)s)[ ]*
+				(?P<altitude_units>km|m|mi|ft|nm|nmi|mile|kilometer|meter|feet|foot|nautical[ ]mile)[s]?)
+	)?
+	\s*$
+""" % QUANT_PATTERNS, re.X | re.I) # HL: added case insensitivity
+
+DATETIME_PATTERN = re.compile(r"""
+	(?P<date>
+		(?P<y>%(YEAR)s)%(DATE_SEP)s
+		(?P<mon>%(MONTH)s)%(DATE_SEP)s
+		(?P<d>%(DAY)s) ) 
+	(?:%(DATE_SEP)s)?
+	(?P<time>
+		(?P<h>%(HOUR)s)%(TIME_SEP)s
+		(?P<m>%(MINUTE)s)%(TIME_SEP)s
+		(?P<s>%(SECOND)s) )
+""" % QUANT_PATTERNS, re.X)
+
+def _test():
+  import doctest
+  doctest.testmod()
+
+if __name__ == "__main__":
+  _test()
