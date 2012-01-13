@@ -203,6 +203,7 @@ if o.shuffle:
 	o.image_filename = tagim.shuffle_background_photo(o.image_filename);
 
 if not o.image_filename:
+	import os
 	if o.background:
 		warn("You have requested to set the desktop background to the image that is already used for the desktop background, so nothing to be done!") # ,UserWarning) #,RuntimeWarning)
 		o.background = False

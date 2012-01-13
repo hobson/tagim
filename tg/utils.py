@@ -21,16 +21,8 @@ class UserEnv:
 		return "USER='"+self.user+"' && HOME='"+self.home+"'"
 
 def user_home():
-	import os
-	user=os.getenv('USER')
-	if not user:
-		user='hobs'
-
-	home=os.getenv('HOME')
-	if not home:
-	  home=os.path.join(os.path.sep+'home',user)
-
-	return (user,home)
+	ue = UserEnv()
+	return(ue.user,ue.home)
 
 def basic_arguments(p):
 	from optparse import OptionParser

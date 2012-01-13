@@ -36,7 +36,7 @@ import re
 version = '0.7'
 
 import tg;
-(user,home) = tg.user_home;
+(user,home) = tg.user_home();
 
 # I can't imagine GPS positions ever needing to be recorded better
 #  than a couple tenths of a milimeter (an arcsecond is about 1.7 meters)
