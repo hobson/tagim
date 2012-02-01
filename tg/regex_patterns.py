@@ -28,6 +28,7 @@ from __future__ import division
 version = '0.7'
 import re
 import geopy
+import os.path
 
 # Unicode characters for symbols that appear in coordinate strings.
 DEGREE = unichr(176)
@@ -84,6 +85,26 @@ UTIL_PATTERNS = dict(
 	DEGREE_SYM      =       r'['+geopy.format.DEGREE      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
 	ARCMIN_SYM      = r'(?:arc|Arc|ARC)?['+geopy.format.PRIME       +r"'Mm][Ii]?[Nn]?", 
 	ARCSEC_SYM      = r'(?:arc|Arc|ARC)?\-?['+geopy.format.DOUBLE_PRIME+r'"Ss?', 
+	EOL             = r'(?:\r\n|\n|\r)',
+	QUOTE           = r"""(?P<quote>(?P<quoter>['"])(?P<quoted>.*?)(?P=quoter))""", # named parameters could through regexes that use \1 off
+	)
+
+# TODO: Implement patterns for paths
+#   1. identify quoted and unquoted path names, with or without backslash-escaped spaces
+#   2. process escapes properly according to OS (backslash for linux)
+#   3. contribute these path patterns to the os.path python module/library
+PATH_PATTERNS = dict(
+	# http://techtavern.wordpress.com/2009/04/06/regex-that-matches-path-filename-and-extension/
+	LIN      = r"""(?P<PathPattLinQuote>['"]?)""" \
+	           + r'(?P<PathPattLinBase>.*/)?' \
+	           + r'(?P<PathPattLinFile>$|(.+?)(?:([.][^.]*$)|$))' \
+	           + r'(?P=PathPattLinQuote)',
+	# see http://stackoverflow.com/questions/5452655/python-regex-to-match-text-in-single-quotes-ignoring-escaped-quotes-and-tabs-n
+	#LIN_PATH      = "(['\"]?)[-_A-Za-z/.]+(\0)", # not at all precise/accurate or complete
+	WIN      = r'',
+	DOS      = r'',
+	MAC      = r'',
+	ANY          = r'['+os.path.sep+r']*', # add in colon (os.curdir) for DOS drive designations
 	)
 
 QUANT_PATTERNS = dict(

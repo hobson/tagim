@@ -11,23 +11,28 @@ Depends On:
 
 TODO:
 	Add command line options to trigger e-mailing, blog posting, and/or web2.0 sharing of the image.
+	Refresh desktop photo after a rotate.
+	Allow manual refresh
+	Allow quiet output of just filename and double-quiet output of nothing but errors and tripple quiet no output.
+	Make sure catalog is being updated to include more recent photos.
+	Use file system monitoring system (see recoll user manual) to trigger database updates
+	Use a databasing system to keep track of which files have been shown and to index the tags and comments for searching.
 """
 
 # eliminates insidious integer division errors, otherwise '(1.0 + 2/3)' gives 1.0 (in python <3.0)
 from __future__ import division
-
-version = '0.7'
-
-
 # TODO: optionparser deprecated
 from optparse import OptionParser
-
 import tg.tagim as tagim
-
 from warnings import warn
-from tg.utils import zero_if_none, sign
+from tg.utils import zero_if_none, sign, running_as_root
+import os
+import pyexiv2
+import sys
+#import desktop # shell function to grab the desktop background image file path name using gconf-2
+from geopy import util, units
 
-
+version = '0.8'
 
 # TODO: 'optparse.OptionParser' deprecated, refactor to 'argparse.ArgumentParser' and do something about reverse compatability
 #p = argparse.ArgumentParser(
@@ -47,7 +52,8 @@ p = OptionParser(usage="%prog [options] [tag1] [tag2] ...[tagN]", add_help_optio
 p.add_option('--date', '--datetime', '--time',
 			 dest='date', default =None,
 			 help='Date and time the image was taken, in ISO format, YY-MM-DD hh:mm:ss', )
-p.add_option('-i', '--image', '--filename', '--image_file', '--image_filename', '--path', '--image_path',
+p.add_option('-i', '--image', '--filename', '--image_file', '--image_filename',
+			 '--path', '--image_path',
 			 dest='image_filename', default = None,
 			 help='Image file whose EXIF or IPTC tags should be modified.', )
 p.add_option('-m', '--mirror', '--flip', '--transpose', 
@@ -56,7 +62,10 @@ p.add_option('-m', '--mirror', '--flip', '--transpose',
 p.add_option('-g', '--gps', '-l', '--location',
 			 dest='gps', default = None,
 			 help='GPS location of the scene in the image, to be added to EXIF tags for the image.', )
-p.add_option('--go', '--og', '--cg', '--mg', '--gc', '--ogps','--mgps','--cgps', '--overwrite-gps', '--overwritegps', '--overwrite_gps', '--gps-overwrite', '--gpsoverwrite', '--gps_overwrite','--move-gps','--change-gps','--change_gps','--changegps',
+p.add_option('--go', '--og', '--cg', '--mg', '--gc', '--ogps','--mgps','--cgps',
+			 '--overwrite-gps', '--overwritegps', '--overwrite_gps', '--gps-overwrite',
+			 '--gpsoverwrite', '--gps_overwrite','--move-gps','--change-gps','--change_gps',
+			 '--changegps',
 			 dest='overwritegps', default = False,
 			 action='store_true', 
 			 help='Overwrite the gps position, even if one already appears to be present in the file.', )
@@ -86,7 +95,11 @@ p.add_option('-u','--update','--refresh-catalog', '--update-catalog','--catalog'
 p.add_option('-b', '-d', '--background','--desktop','--desktopbackground','--desktop-background','--desktop_background',
 			 dest='background', default = False, 
 			 action='store_true',
-			 help='Whether or not to change the background image to reflect the image identified by --filename or --image.')
+			 help='Whether to change the background image to reflect the image identified by --filename or --image.')
+p.add_option('--ubuntu', '--splash', '--splash-screen',
+			 dest='splash', default = False, 
+			 action='store_true',
+			 help='Whether to change the bootup background image (splash screen) to reflect the image identified by --filename or --image.')
 p.add_option('-t', '--tag',
 			 dest='tag', default='',
 			 help='Tags to add to image.')
@@ -160,14 +173,8 @@ p.add_option('--email-server', '--email_server','--email-url', '--email_url','--
 
 (o, a) = p.parse_args()
 
-import pyexiv2
-import sys
-#import desktop # shell function to grab the desktop background image file path name using gconf-2
-from geopy import util, units
-
 if o.email_pw:
-	import warnings
-	warnings.warn("Make sure you invoked "+p.get_prog_name()+" in such a way that history won't record this command (with a plaintext password) in the history file. It would be much  better if you didn't supply the password on the command line and instead allowed this script to securely prompt you for it later.")  # ,UserWarning) #,RuntimeWarning)
+	warn("Make sure you invoked "+p.get_prog_name()+" in such a way that history won't record this command (with a plaintext password) in the history file. It would be much  better if you didn't supply the password on the command line and instead allowed this script to securely prompt you for it later.")  # ,UserWarning) #,RuntimeWarning)
 
 if not o.email_from:
 	o.email_from = o.email_user
@@ -203,7 +210,6 @@ if o.shuffle:
 	o.image_filename = tagim.shuffle_background_photo(o.image_filename);
 
 if not o.image_filename:
-	import os
 	if o.background:
 		warn("You have requested to set the desktop background to the image that is already used for the desktop background, so nothing to be done!") # ,UserWarning) #,RuntimeWarning)
 		o.background = False
@@ -223,6 +229,7 @@ if o.angle or int(o.flip):
   if not o.flip:
 	 o.flip=0
   tagim.rotate_image(o.image_filename,angle=round(float(o.angle),2),flip=int(o.flip))
+  # TODO: update desktop image if it was the one being rotated
 
 # need these even if not o.verbose
 im = pyexiv2.ImageMetadata(o.image_filename)
@@ -300,6 +307,17 @@ if o.background and os.path.exists(o.image_filename):
 	#tagim.set_image_path(o.image_filename)
 	#warn("Desktop image description text file no longer matches the image displayed.") # ,UserWarning) #,RuntimeWarning)
 	# TODO: need to also write to the ImageMagik "identify" text file
+
+# in '/etc/lightdm/unity-greeter.conf' modify line in "[greeter]" section starting
+# with 'background=/home/...' and insert the user-selected path (o.image)
+if o.splash and os.path.exists(o.image_filename):
+	import subprocess
+	print 'file: '+__file__
+	if running_as_root(quiet=True):
+		subprocess.call(["python set_splash_background.py '"+o.image_filename+"'"])
+		# tagim.set_splash_background(o.image_filename)
+	else:
+		subprocess.call(['gksudo',"python set_splash_background.py '"+o.image_filename+"'"])
 
 if o.dry_run:
 	print(o.image_filename) # just print out the file name in case tagim was just used to find out the file path for the desktop image

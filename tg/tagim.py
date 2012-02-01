@@ -21,6 +21,18 @@ Depends On:
 TODO:
 	Add a functions to e-mail, blog, or web2.0 share an image file.
 	Eliminate model_byline variable and content before release!!!
+	this fails: tagim -i /home/hobs/photo...jpg --background  
+	            tagim hello world
+	        Error: Couldn't find the image file at 'Status=0 after copying user-designated image file at '/media/Win7/Users/Hobs/Documents/Photos/2008_10 MDR, Catalina, San Diego/IMG_3629.JPG' to dekstop background image location.'Image file name: 'Status=0 after copying user-designated image file at '/media/Win7/Users/Hobs/Documents/Photos/2008_10 MDR, Catalina, San Diego/IMG_3629.JPG' to dekstop background image location.'
+Traceback (most recent call last):
+  File "/home/hobs/bin/tagim", line 230, in <module>
+    im.read()
+  File "/home/hobs/.local/lib/python2.7/site-packages/pyexiv2/metadata.py", line 107, in read
+    self.__image = self._instantiate_image(self.filename)
+  File "/home/hobs/.local/lib/python2.7/site-packages/pyexiv2/metadata.py", line 74, in _instantiate_image
+    raise IOError(ENOENT, os.strerror(ENOENT), filename)
+IOError: [Errno 2] No such file or directory: "Status=0 after copying user-designated image file at '/media/Win7/Users/Hobs/Documents/Photos/2008_10 MDR, Catalina, San Diego/IMG_3629.JPG' to dekstop background image location."
+
 """
 
 # eliminates insidious integer division errors, otherwise '(1.0 + 2/3)' gives 1.0 (in python <3.0)
@@ -104,11 +116,9 @@ DBG_LOG_PATH     = os.path.realpath(os.path.join(home,
 DBG_DB_PATH     = os.path.realpath(os.path.join(DBG_PHOTOS_PATH, 
                                    '.tagim_photo_sqlite_database.db'))
 
-
 # flip = 1 for flipping left-right (horizontally), flip = 2 is for flipping top-bottom (vertically)
 def rotate_image(filename,angle=0.0,resample='bicubic',expand=True,flip=0):
 	import tg.nlp as nlp
-	from warnings import warn
 	import pyexiv2
 	from PIL import Image
 	if not nlp.is_number(angle) or abs(float(angle))<=1e-6:
@@ -274,7 +284,6 @@ def exif_gps_rationalize(deg):
 	return  ("{d}/1 {m}/1 {s}/{den}".format(d=int(round(d)),m=int(round(m)),s=int(round(s_num)),den=s_den), isneg)
 
 def location2latlon(location_string):
-	from warnings import warn
 	import geopy
 	lat = lon = alt = 0.0
 	mo = POINT_PATTERN.match(location_string)
@@ -481,30 +490,19 @@ def test():
 		r = parse_date(t)
 		print "  dateime: "+str(r)
 
-user=os.getenv('USER')
-if not user:
-	user='hobs'
-home=os.getenv('HOME')
-if not home:
-	home=os.path.join(os.path.sep+'home', user)
-
+# TODO: use shutil and re.sub instead of commands module with `cp` and `sed` commands
 def shuffle_background_photo(image=''):
-	user=os.getenv('USER')
-	if not user:
-		user='hobs'
-	home=os.getenv('HOME')
-	if not home:
-	  home=os.path.join(os.path.sep+'home',user)
-
+	#(user,home) = tg.user_home();
+	dbg_log_file = open(DBG_LOG_PATH,mode='a')
 	import commands
 	if image and os.path.isfile(image):
 		command = 'cp -f "{0}" "{1}"'.format(os.path.realpath(image),
 		                                     DBG_PATH ) # overwrite the existing background image
 		status, output = commands.getstatusoutput(command)  # status=0 if success
-		#print status,':',output
+		msg = "{0}:{1}:\n  Status={2} after copying user-designated image file at '{3}' to dekstop background image location.".format(
+		          __file__,__name__,status,image)
+		print >> dbg_log_file, msg
 		return image
-
-	dbg_log_file = open(DBG_LOG_PATH,mode='a')
 	msg = "{0}:{1}:\n  Starting desktop background random selection.".format(__file__,__name__)
 	print >> dbg_log_file, msg
 
@@ -516,24 +514,46 @@ def shuffle_background_photo(image=''):
 	while status or not RANDPHOTOPATH or not os.path.isfile(RANDPHOTOPATH):
 		status, RANDPHOTOPATH = commands.getstatusoutput(
 			'sed -n {0}p "{1}"'.format(str(random.randint(1,int(PHOTOCOUNT))),DBG_CATALOG_PATH))
-
 	# command = "gconftool-2 --set /desktop/gnome/background/picture_filename --type string '/home/hobs/.cache/gnome-control-center/backgrounds/IMG_20111025_071625.jpg'"
 	# status, output = commands.getstatusoutput(command)
-
 	import shutil
 	shutil.copy(RANDPHOTOPATH,DBG_PATH)
-
 	print >> dbg_log_file, "  Finished copying over the desktop background image file with the image at:"
 	#+os.linesep
 	print >> dbg_log_file, RANDPHOTOPATH
-
 	dbg_log_file.close()
-	
 	return RANDPHOTOPATH
 
 	#mv ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt" ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp"
 	#identify -verbose "${RANDPHOTOPATH}" >> "${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt"
 	#cat ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp" >> ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp"
+
+def update_image_catalog():
+	import commands
+	command = "find '{0}' \( -type f -and -size +200k \) -and \( -iname '*.jpg' -or -iname '*.png' -or -iname '*.bmp' -or -iname '*.raw' \) -print > '{1}'".format(DBG_PHOTOS_PATH, DBG_CATALOG_PATH)
+	print command
+	status,output = commands.getstatusoutput(command)
+	return status
+
+# path to file used to set things like the unity boot up screen background
+UBUNTU_SPLASH_CONFIG_PATH = '/etc/lightdm/unity-greeter.conf'
+
+# Set the ubuntu startup screen background to an image file
+def set_splash_background(image='',ubuntu_splash_conf=UBUNTU_SPLASH_CONFIG_PATH):
+	print 'file='+__file__
+	import tg.regex_patterns
+	import tg.utils
+	dbg_log_file = open(DBG_LOG_PATH,mode='a')
+	if image and os.path.isfile(image):
+		# read file into string?
+		EOL = tg.regex_patterns.UTIL_PATTERNS['EOL']
+		patt = r'(?m)(?P<pretext>'+EOL+r'[[]greeter[]](?:.*'+EOL+r')+\s*background\s*=\s*)' \
+		       + tg.regex_patterns.PATH_PATTERNS['LIN']
+		# substitute patten with image path
+		tg.utils.multiline_replace_in_file(patt,r"""(?P=pretext)'"""+image+"'",ubuntu_splash_conf)
+		# re.sub = sub(patt, repl, string, count=0, flags=0)
+		msg = "{0}:{1}:\n  Set Ubuntu splash screen (bootup background) to '{2}'.".format(__file__,__name__,image)
+		print >> dbg_log_file, msg
 
 def update_image_catalog():
 	import commands

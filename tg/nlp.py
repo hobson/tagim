@@ -54,6 +54,8 @@ version = 0.2
 # deep copy implementation would necessitate importing copy module
 # import copy as _copy
 
+from warnings import warn
+
 try:
 	from os import linesep as eol
 except ImportError:
@@ -119,7 +121,6 @@ def non_list_of_characters(s=LETTER):
 		if chr(c) not in s:
 			chr_array.append(chr(c))
 	return(''.join(chr_array)) 
-
 
 # unfortunately this produces a list that includes a lot of hex characters (unprintables) that are unlikely to ever appear in an ASCII text file or CSV file when binary values not converted to hex characters
 NONLETTER = non_list_of_characters(s=LETTER)
@@ -258,9 +259,9 @@ def remove_prefix(s,p,case_sensitive=True,in_place=False):
 def clean_prefix(s,p,case_sensitive=True,in_place=False):
 	"""Removes the specified prefix in-place."""
 	if in_place:
-		s2 = s		 # just copy the reference (pointer) the original string
+		s2 = s             # just copy the reference (pointer) the original string
 	else:
-		s2 = copy.copy(s)	# copy the string contents into a new string
+		s2 = copy.copy(s)  # copy the string contents into a new string
 	if (    ( case_sensitive and s2.startswith(p) )
 	    or ( not case_sensitive and s2.lower().startswith(p.lower()) ) 
 	   ):
@@ -507,9 +508,11 @@ def swap_if_not_in(a,b,c=''):
 		return c
 	return a
 
-def make_printable(s,substitute='~',nochange=PRINTABLE,change=''):
+def make_printable(s, substitute='~',nochange=PRINTABLE,change=''):
 	"""Substitute all nonprintable characters with a surrogate (presumably printable) character."""
-	if isinstance(substitute,str) and isinstance(nochange,str):
+	if not isinstance(s,str):
+		s = str(s)
+	if isinstance(substitute,str) and isinstance(nochange,str) and isinstance(s,str):
 		s2 = substitute
 		if len(change)>0:
 			if len(s2)==1:
@@ -521,7 +524,9 @@ def make_printable(s,substitute='~',nochange=PRINTABLE,change=''):
 			table_list = [swap_if_not_in(chr(c),nochange,s2) for c in range(256)]
 			table = ''.join(table_list)
 		return s.translate(table)
-	raise ValueError
+	msg = "{0}:{1}:\n  Unable to process non-string argument (type {2} to make printable.".format(
+		          __file__,__name__,type(s))
+	warn(msg)
 
 def contains(s,characters=PUNC):
 	N=0
@@ -668,6 +673,7 @@ class Features(object):
 	# Intended to identify the similarity in passages/phrases/paragraphs/sentences/words for
 	# 1. totalgood Food: identify the target of foreign keys when interpreting the schema of FDA databases
 	# 2. determine the best connections/relations between recipt ingredients & FDA "food items"
+
 	s = '' # retain local copy of string that created the feature set
 	wordlist = [] # retain an ordered list of the tokens (words, punctuation, etc)
 	wordset = set() # retain an unordered set of words and tokens
@@ -676,7 +682,6 @@ class Features(object):
 	N = 0
 	MAX_SEQUENCE_LENGTH = 2
 	def __init__(self,s):
-		from warnings import warn
 		self.s = s
 		# don't use split() which only works for words delimitted by either whitespace or a user-designated single character
 		self.wordlist = nltk.word_tokenize(self.s)
@@ -726,7 +731,7 @@ class Features(object):
 # trying to develop a class to use to identify the similarity in passages/phrases/paragraphs/sentences/words 
 # immediate need is to identify the target of foreign keys when interpreting the schema of FDA databases
 # obviously it will also be useful for determining the best connections/relations between the ingredients in the recipe database and the FDA "food items"
-# does menaing have order? should it be a sequence or a set?
+# does meaning have order? should it be a sequence or a set?
 #class Meaning: # really a set of meanings, the atom of meaning might have it's own object and this class might be a set of them
 #	def __eq__(self,other_meaning):
 #		# above some threshold of similarity, two passages are deemed to have the same meaning

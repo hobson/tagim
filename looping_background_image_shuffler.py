@@ -32,8 +32,7 @@ from argparse import ArgumentParser
 import signal # signal, SIGTERM
 import multiprocessing # Event
 
-p = ArgumentParser(
-	description=__doc__.strip())
+p = ArgumentParser(description=__doc__.strip())
 p.add_argument(
 	'N1', 
 	metavar='N1',
@@ -49,7 +48,7 @@ p.add_argument(
 	default = None,
 	help='Maximum number of seconds between desktop image updates.')
 o = p.parse_args()
-print o
+#print o
 # print vars(o)
 # better to use min/max for these so the order doesn't matter
 

@@ -1,5 +1,9 @@
-.gitignore~
+.gitignore[~]
 *.py[co~]
+*.txt[~]
+testing.txt
+testing2.txt
+unity-greeter.conf
 
 # Packages
 *.egg

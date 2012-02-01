@@ -6,15 +6,16 @@ author  "Hobson Lane <hobson@totalgood.com>"
 #
 # from accepted answer at http://stackoverflow.com/questions/4705564/python-script-as-linux-service-daemon
 
-#start on runlevel [234]
+start on runlevel [234]
 start on started mountall
-#stop on runlevel [0156]
+start on startup
+stop on runlevel [0156]
 stop on shutdown
 
 
 # send output to stdout
 # console output
-console logged
+# console logged
 
 # let upstart know the process will detach itself to the background
 # expect fork
