@@ -103,10 +103,14 @@ p.add_option('--ubuntu', '--splash', '--splash-screen',
 p.add_option('-t', '--tag',
 			 dest='tag', default='',
 			 help='Tags to add to image.')
-p.add_option('--test',
-			 dest='test', default=False, 
+p.add_option('--test-module',
+			 default=False, 
 			 action='store_true',
-			 help='Test parsing algorithms.')
+			 help='Test tagim module and exif parsing algorithms (which rely on the pyexiv2 module).')
+p.add_option('--test',
+			 default=False, 
+			 action='store_true',
+			 help='Test the tagim script and tagim exif parsing algorihms.')
 p.add_option('-c', '--comment',
 			 dest='comment', default='',
 			 help='User comment text to add to image EXIF Comment meta field (not EXIF.Photo.UserComment field).')
@@ -198,8 +202,12 @@ if o.debug:
   print('Command line options being used by '+sys.argv[0]+':')
   print(o)
 
-if o.test:
+if o.test_module:
 	tagim.test()
+
+if o.test_module:
+	import doctest
+	doctest.testmod()
 
 if o.update:
 	tagim.update_image_catalog()
@@ -211,7 +219,7 @@ if o.shuffle:
 
 if not o.image_filename:
 	if o.background:
-		warn("You have requested to set the desktop background to the image that is already used for the desktop background, so nothing to be done!") # ,UserWarning) #,RuntimeWarning)
+		warn("You have requested to set the desktop background to the image that is already used for the desktop background (the default input image), so nothing to be done!") # ,UserWarning) #,RuntimeWarning)
 		o.background = False
 	# strip removes trailing (and leading?) \r\n characters, so filenames with leading or trailing spaces will be corrupted
 	o.image_filename = os.path.normpath(tagim.image_path_from_log().strip()) #.strip('"') 
@@ -224,12 +232,16 @@ if o.verbose:
   print "Image file name: '{0}'".format(o.image_filename)
 
 if o.angle or int(o.flip):
-  if not o.angle:
-	 o.angle=0.0
-  if not o.flip:
-	 o.flip=0
-  tagim.rotate_image(o.image_filename,angle=round(float(o.angle),2),flip=int(o.flip))
-  # TODO: update desktop image if it was the one being rotated
+	if not o.angle:
+		o.angle=0.0
+	if not o.flip:
+		o.flip=0
+	tagim.rotate_image(o.image_filename,angle=round(float(o.angle),2),flip=int(o.flip))
+	p = tagim.image_path_from_log()
+	print 'path tagim.image_path(): ' + p + "\n"
+	print 'path o.image_filename: ' + o.image_filename + "\n"
+	if o.image_filename == p:
+		tagim.shuffle_background_photo(o.image_filename) # update the desktop image to the file that was rotated
 
 # need these even if not o.verbose
 im = pyexiv2.ImageMetadata(o.image_filename)
@@ -349,4 +361,5 @@ else:
 		             server      = o.email_server,
 		             text        = o.email_body,
 		             size        = o.email_res)
+
 

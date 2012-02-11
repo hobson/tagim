@@ -1,6 +1,7 @@
 .gitignore[~]
 *.py[co~]
 *.txt[~]
+*.sh[~]
 testing.txt
 testing2.txt
 unity-greeter.conf
@@ -30,3 +31,6 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+#Data
+tg/data

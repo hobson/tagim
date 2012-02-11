@@ -116,8 +116,23 @@ DBG_LOG_PATH     = os.path.realpath(os.path.join(home,
 DBG_DB_PATH     = os.path.realpath(os.path.join(DBG_PHOTOS_PATH, 
                                    '.tagim_photo_sqlite_database.db'))
 
-# flip = 1 for flipping left-right (horizontally), flip = 2 is for flipping top-bottom (vertically)
 def rotate_image(filename,angle=0.0,resample='bicubic',expand=True,flip=0):
+	"""Rotate and/or flip the image data within a jpeg file.
+	
+	Examples:
+	>>> import filecmp, tg.utils
+	>>> imp    = os.path.join(tg.utils.path_here()[0],  test.jpg)
+	>>> imp90  = os.path.join(tg.utils.path_here()[0],test90.jpg)
+	>>> imp90b = os.path.join(tg.utils.path_here()[0],test90.jpg)
+	>>> os.copy(imp,imp90b)
+	>>> rotate(imp90b,90,flip=0)
+	>>> filecmp.cmp(imp90,imp90b,shallow=False)
+	True
+	>>> filecmp.cmp(imp,imp90b,shallow=False)
+	False
+	>>> filecmp.cmp(imp,imp90, shallow=False)
+	False
+	"""
 	import tg.nlp as nlp
 	import pyexiv2
 	from PIL import Image
@@ -430,7 +445,7 @@ def exif2latlon(exif_dict):
 			return (None,None,None)
 	return (values[EXIF_GPS_POS_LABELS[0]],values[EXIF_GPS_POS_LABELS[1]],values[EXIF_GPS_POS_LABELS[2]])
 
-def test():
+def test_gps():
 	test_gps_s = [
 		'6.96131666667N, 117.043733333 E',
 		'6.96131666667 S, 117.043733333W',
@@ -490,33 +505,29 @@ def test():
 		r = parse_date(t)
 		print "  dateime: "+str(r)
 
-# TODO: use shutil and re.sub instead of commands module with `cp` and `sed` commands
+# TODO: gnome gconf settings don't match the path to DBG_PATH, but this works anyway, why?
 def shuffle_background_photo(image=''):
 	#(user,home) = tg.user_home();
 	dbg_log_file = open(DBG_LOG_PATH,mode='a')
-	import commands
+	import random, commands, shutil
 	if image and os.path.isfile(image):
-		command = 'cp -f "{0}" "{1}"'.format(os.path.realpath(image),
-		                                     DBG_PATH ) # overwrite the existing background image
+		shutil.copy(os.path.realpath(image),DBG_PATH) # overwrite the existing background image
 		status, output = commands.getstatusoutput(command)  # status=0 if success
-		msg = "{0}:{1}:\n  Status={2} after copying user-designated image file at '{3}' to dekstop background image location.".format(
-		          __file__,__name__,status,image)
+		msg = "{0}:{1}:\n  Copied-designated image file, '{3}', to desktop background image location.".format(
+		          __file__,__name__,image)
 		print >> dbg_log_file, msg
 		return image
 	msg = "{0}:{1}:\n  Starting desktop background random selection.".format(__file__,__name__)
 	print >> dbg_log_file, msg
-
+	# TODO use tg.utils.find_in_files or shutil or similar instead of cat and grep:
 	status, PHOTOCOUNT = commands.getstatusoutput('cat {0} | grep / -c'.format(DBG_CATALOG_PATH))  # status=0 if success
 
-	import random
 	RANDPHOTOPATH = ''
 	status = True # status = 0 when successful shell command is run
 	while status or not RANDPHOTOPATH or not os.path.isfile(RANDPHOTOPATH):
+		# TODO use tg.utils.replace_in_file instead of sed:
 		status, RANDPHOTOPATH = commands.getstatusoutput(
 			'sed -n {0}p "{1}"'.format(str(random.randint(1,int(PHOTOCOUNT))),DBG_CATALOG_PATH))
-	# command = "gconftool-2 --set /desktop/gnome/background/picture_filename --type string '/home/hobs/.cache/gnome-control-center/backgrounds/IMG_20111025_071625.jpg'"
-	# status, output = commands.getstatusoutput(command)
-	import shutil
 	shutil.copy(RANDPHOTOPATH,DBG_PATH)
 	print >> dbg_log_file, "  Finished copying over the desktop background image file with the image at:"
 	#+os.linesep
@@ -529,6 +540,7 @@ def shuffle_background_photo(image=''):
 	#cat ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp" >> ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp"
 
 def update_image_catalog():
+	# TODO: use shutils python module instead of linux bash shell command
 	import commands
 	command = "find '{0}' \( -type f -and -size +200k \) -and \( -iname '*.jpg' -or -iname '*.png' -or -iname '*.bmp' -or -iname '*.raw' \) -print > '{1}'".format(DBG_PHOTOS_PATH, DBG_CATALOG_PATH)
 	print command
@@ -566,19 +578,28 @@ def image_path_from_log():
 	# Is subprocess.Popen better than os.system(...)? commands module might be better
 	# It allows retrieval of output is the main thing.
 	import commands
+	# TODO: use python functions in utils.replace_in_file instead of sed
 	status,output = commands.getstatusoutput('sed -n \$p {0}'.format(DBG_LOG_PATH))
-	return output
+	if output[-1]=='\n': # this has only ever happened with the subprocess.Popen command, but you never know
+		output=output[:-1]
+	return  os.path.normpath(os.path.abspath(output.strip()))
 
+# TODO: this no longer seems to work, in the latest Ubuntu
 def image_path_from_gnome():
 	# Is subprocess.Popen better than os.system(...)? commands module might be better
 	# It allows retrieval of output is the main thing.
 	import subprocess
 	output = subprocess.Popen(["gconftool-2",'--get','/desktop/gnome/background/picture_filename'], stdout=subprocess.PIPE).communicate()[0]
-	return output
+	if output[-1]=='\n':
+		output=output[:-1]
+	return  os.path.normpath(os.path.abspath(output.strip()))
 
 def image_path():
 	path_log=image_path_from_log()
 	path_gnome=image_path_from_gnome()
+	print 'image_path_from_log():   ' + path_log + "\n"
+	print 'image_path_from_gnome(): ' + path_gnome + "\n"
+
 	if identical_images(path_log,path_gnome):
 		return path_log
 	else:
@@ -590,6 +611,9 @@ def identical_images(path1,path2):
 	im1=Image.open(path1)
 	im2=Image.open(path2)
 	return bool(im1==im2)
+
+def compare_images(path1,path2):
+	return identical_images(path1,path2)
 
 # this all needs to be in a db class
 
@@ -673,4 +697,11 @@ def identical_images(path1,path2):
 #		for pat in patterns
 #			for filename in fnmatch.filter(files, pat ):
 #				clean_tags( os.path.join(base_dir, filename) )
+
+def test():
+	import doctest
+	doctest.testmod()
+
+if __name__ == "__main__":
+	_test()
 

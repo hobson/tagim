@@ -92,8 +92,7 @@ def replace_in_files(search_pattern, relacement_pattern, dir_name='./', extensio
 #else:
 #	replace_in_files(sys.argv[1], sys.argv[2], sys.argv[3])
 
-
-class UserEnv:
+class Env:
 	def __init__(self,username='hobs'):
 		import os
 		self.user=os.getenv('USER')
@@ -102,12 +101,25 @@ class UserEnv:
 		self.home=os.getenv('HOME')
 		if not self.home:
 			self.home=os.path.join(os.path.sep+'home',user)
+		try:
+			self.module_path=os.path.realpath(__file__)
+			self.module_dir =os.path.dirname(self.module_path)
+			self.work_dir   =os.path.split(self.module_dir)[0]
+		except NameError:
+			# py2exe
+			self.module_path=sys.argv[0]
+			self.module_dir =os.path.dirname(self.module_path)
+			self.work_dir   =self.module_path
 	def __repr__(self):
 		return "USER='"+self.user+"' && HOME='"+self.home+"'"
 
 def user_home():
-	ue = UserEnv()
+	ue = Env()
 	return(ue.user,ue.home)
+
+def path_here():
+	en = Env()
+	return(en.module_path,en.module_dir,en.work_dir)
 
 def basic_arguments(p):
 	from optparse import OptionParser
@@ -156,7 +168,6 @@ def running_as_root(quiet=False):
 		msg = "{0}:{1}:\n  Insufficient priveledges--need admin (root). Rerun this script using sudo or equivalent.".format(__file__,__name__)
 		warn(msg)
 	return False
-
 
 # unlike math.copysign, this may return +1 for -0.0 (on systems that have negative zero)
 def sign(f):
