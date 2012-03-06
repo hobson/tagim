@@ -193,20 +193,16 @@ def display_meta(im):
 
 	print '-------------EXIF Data-------------------'
 	for k in exif:
-		s = nlp.make_printable(str(im[k].value))
-		if s.strip() == 'Unknown':
-			print '!!!!!!!!!!!!!!!!!!!! Making Unknown value printable !!!!!!!!!!!!!!!!'
-			# if raw_value is a list of unichr then use ''.join([unichr(c) for c in raw_value])
-			s = nlp.make_printable(im[k].raw_value) # display raw value for unknown interpretations of the Exif value in exiv2 library
-		print "{0}: {1}".format(k,s)
+		# escape_unprintable(str(...  or s.encode('utf_8','backslashreplace')
+		print "{0}: {1}".format(k,str(im[k].value))
 	print '-----------------------------------------'
 	print
 	print '-------------IPTC Data-------------------'
 	for k in iptc:
-		print "{0}: {1}".format(k,nlp.make_printable(im[k].value))
+		print "{0}: {1}".format(k,str(im[k].value))
 	print '-------------XMP Data-------------------'
 	for k in xmp:
-		print "{0}: {1}".format(k,nlp.make_printable(im[k].value))
+		print "{0}: {1}".format(k,str(im[k].value))
 	print '-----------------------------------------'
 	print
 	print '------------- Comment -------------------'
@@ -349,6 +345,65 @@ def latlon2exif(lat,lon,alt=0.0):
 				EXIF_GPS_LON_LABEL+EXIF_GPS_REF_SUFFIX: lonref,
 				EXIF_GPS_ALT_LABEL+EXIF_GPS_REF_SUFFIX: altref,
 			}
+
+def deg2dm(decimal_degrees):
+	"""
+	Convert decimal degrees to degrees, minutes, sign
+	"""
+	sgn = copysign(1.,decimal_degrees)
+	degrees = int(abs(decimal_degrees))
+	decmial_minutes = abs(decimal_degrees)-degrees
+	return (degrees, minutes, sgn)
+
+def latlon2pyexiv2(lat_deg,lon_deg):
+	(d1,m1,sgn1) = deg2dm(lat_deg)
+	if sgn1:
+		sgn1 = 0
+	else:
+		sgn1 = -1
+	(d2,m2,sgn2) = deg2dm(lon_deg)
+	if sgn2:
+		sgn2 = 0
+	else:
+		sgn2 = -1
+	# 'DDD,MM.mmk' (k is N/S or E/W
+	lat = pyexiv2.GPSCoordinate.from_string('{0:2d},{1:2.4d}{2:1s}'.format(d1,m1,chr(sgn1*(ord('N')-ord('S'))+ord('N'))))
+	lon = pyexiv2.GPSCoordinate.from_string('{0:2d},{1:2.4d}{2:1s}'.format(d2,m2,chr(sgn2*(ord('E')-ord('W'))+ord('E'))))
+	return (lat,lon)
+
+def set_gps_location(exiv_image, lat, lng):
+	"""Adds GPS position as EXIF metadata
+
+	Keyword arguments:
+	exiv_image -- pyexiv2.Image(filename)
+	              the metadata should have already been read
+	              this function will not write the new information
+	              but rather modify the EXIF tags in memory
+	              Do an exif_image.write() to save the changed tags
+	lat -- latitude (as float)
+	lng -- longitude (as float)
+
+	based on code by Maksym Kozlenko at:
+	  http://stackoverflow.com/questions/453395/what-is-the-best-way-to-geotag-jpeg-images-with-python
+	"""
+	lat_deg = to_deg(lat, ["S", "N"])
+	lng_deg = to_deg(lng, ["W", "E"])
+
+	# convert decimal coordinates into degrees, munutes and seconds
+	exiv_lat = (pyexiv2.Rational(lat_deg[0]*60+lat_deg[1],60),pyexiv2.Rational(lat_deg[2]*100,6000), pyexiv2.Rational(0, 1))
+	exiv_lng = (pyexiv2.Rational(lng_deg[0]*60+lng_deg[1],60),pyexiv2.Rational(lng_deg[2]*100,6000), pyexiv2.Rational(0, 1))
+
+	exiv_image = pyexiv2.Image(file_name)
+	exif_keys = exiv_image.exifKeys() 
+
+	exiv_image["Exif.GPSInfo.GPSLatitude"] = exiv_lat
+	exiv_image["Exif.GPSInfo.GPSLatitudeRef"] = lat_deg[3]
+	exiv_image["Exif.GPSInfo.GPSLongitude"] = exiv_lng
+	exiv_image["Exif.GPSInfo.GPSLongitudeRef"] = lng_deg[3]
+	exiv_image["Exif.Image.GPSTag"] = 654
+	exiv_image["Exif.GPSInfo.GPSMapDatum"] = "WGS-84"
+	exiv_image["Exif.GPSInfo.GPSVersionID"] = '2 0 0 0'
+
 
 # create a dictionary of the EXIF labels and strings (fractions of integers in d/d m/m s/s format)
 def exif_gps_strings(location_string):
@@ -506,16 +561,16 @@ def test_gps():
 		print "  dateime: "+str(r)
 
 # TODO: gnome gconf settings don't match the path to DBG_PATH, but this works anyway, why?
-def shuffle_background_photo(image=''):
+def shuffle_background_photo(image=''): 
 	#(user,home) = tg.user_home();
 	dbg_log_file = open(DBG_LOG_PATH,mode='a')
 	import random, commands, shutil
 	if image and os.path.isfile(image):
 		shutil.copy(os.path.realpath(image),DBG_PATH) # overwrite the existing background image
-		status, output = commands.getstatusoutput(command)  # status=0 if success
-		msg = "{0}:{1}:\n  Copied-designated image file, '{3}', to desktop background image location.".format(
+		msg = "{0}:{1}:\n  Copied-designated image file, '{2}', to desktop background image location.".format(
 		          __file__,__name__,image)
 		print >> dbg_log_file, msg
+		print >> dbg_log_file, image
 		return image
 	msg = "{0}:{1}:\n  Starting desktop background random selection.".format(__file__,__name__)
 	print >> dbg_log_file, msg

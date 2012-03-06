@@ -72,10 +72,6 @@ p.add_option('--go', '--og', '--cg', '--mg', '--gc', '--ogps','--mgps','--cgps',
 p.add_option('-r', '--rotate','--rot',
 			 dest='angle', default = None,
 			 help='Rotation angle in clockwise degrees.', )
-p.add_option('-a', '--append',
-			 dest='append', default='True',
-			 action='store_true', 
-			 help='Append comments and tags to existing text in user comment meta data for image file.', )
 p.add_option('-o', '--overwrite',
 			 dest='append', default='True',
 			 action='store_false', 
@@ -140,7 +136,7 @@ p.add_option('--comment-field',
 p.add_option('--tag-field',
 			 dest='tag_field_name',default = None,
 			 help='NOT IMPLEMENTED: intended to redirect tag text to a field other than a specially encoded line at the end of the comment field.')
-p.add_option('-s','--send', '--share','--send-email','--send_email','--share-email','--share_email','--email','--email-to','--email_to','--to','--blog-email','--blog_email',
+p.add_option('-s','--send', '--share','--send-email','--send_email','--share-email','--email','--email-to','--email_to','--to',
 			 dest='email_to', 
 			 default = None,
 			 help='Send the modified or tagged image to the e-mail address specified.', )
@@ -156,7 +152,7 @@ p.add_option('--email-subject', '--email_subject','--subject',
 			 dest='email_subject',
 			 default ='A Hobs Photo',
 			 help="The email address or user name for your smtp email server account (e.g. name@gmail.com)")
-p.add_option('--email-resolution', '--email_resolution','--email-res', '--email_res','--resolution', '--res','--email-size','--email_size',
+p.add_option('--email-resolution', '--email_resolution','--email-res', '--email_res','--resolution', '--res',
 			 dest='email_res',
 			 default =None,
 			 help="Size of the image to be e-mailed (shrink if necessary)--number of pixels along the maximum dimension (length or width, whichever is larger).")
@@ -236,7 +232,7 @@ if o.angle or int(o.flip):
 		o.angle=0.0
 	if not o.flip:
 		o.flip=0
-	tagim.rotate_image(o.image_filename,angle=round(float(o.angle),2),flip=int(o.flip))
+	im=tagim.rotate_image(o.image_filename,angle=round(float(o.angle),2),flip=int(o.flip))
 	p = tagim.image_path_from_log()
 	print 'path tagim.image_path(): ' + p + "\n"
 	print 'path o.image_filename: ' + o.image_filename + "\n"
@@ -252,7 +248,7 @@ xmp = im.xmp_keys
 
 old_comment = ''
 clean_comment = ''
-tags = ''
+tags = '' # initialize the tags variable before extracting the existing tags from the image and appending any new ones
 
 if o.comment_field_name:
 	if o.comment_field_name in exif:
@@ -271,9 +267,9 @@ new_comment = clean_comment
 if len(new_comment)>0:
 	new_comment += '\n'
 new_comment += o.comment
-# actHL: probably one too many '\n' newline characters here:
+# TODO: delete unneccessary (ugly) '\n' newline characters:
 if len(tags) > 0 or len(o.tag) > 0:
-	new_comment = new_comment.strip('\r\n\t')
+	new_comment = new_comment.strip('\r\n\t') # why not strip spaces too? 
 	if len(new_comment)>0:
 		new_comment += '\n' # find out whether \r\n is specified as line feed in EXIF standard for multi-line text fields
 	new_comment += 'Tags: '
@@ -291,13 +287,12 @@ else:
 
 if o.gps:
 	if o.overwritegps or (not o.append) or (not (lat_label in exif)) or (len(im[lat_label].value)<2):
-		d=tagim.exif_gps_strings(o.gps)
+		d=tagim.exif_gps_strings(o.gps) # produce a dictionary of key/values for gps location string
 		if o.verbose:
-			print "GPS tag to be added to EXIF for this file:" 
+			print "GPS tags added to EXIF for this file:" 
 			import yaml
 			print yaml.dump(d)
-		for k,v in d.items():
-			im[k]=v
+		
 	else:
 		warn('Though a GPS position string ('+o.gps+') was provided, the file ('+o.image_filename+') already has a GPS tag. To overwrite or change this GPS position, pass the --overwrite-gps option in addition to the --gps position string.')
 
@@ -337,7 +332,7 @@ if o.dry_run:
 else:
 	if o.verbose:
 		print 'Writing meta data to file at ' + o.image_filename
-	if o.tag or o.comment or o.date or o.gps: # rotate would've already done a write, so dry-run option wouldn't be any use
+	if o.tag or o.comment or o.date or o.gps: # or o.angle or o.flip: # but im.write() happens within tagim.rotate_image function already
 		im.write()
 	if o.email_to:
 		if not o.email_body:

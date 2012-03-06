@@ -508,7 +508,18 @@ def swap_if_not_in(a,b,c=''):
 		return c
 	return a
 
-def make_printable(s, substitute='~',nochange=PRINTABLE,change=''):
+# TODO: add backslash encoding and EOF \n and other ascii representations of control characters
+def escape_ascii(s):
+	s2=''
+	for c in s:
+		if ord(c) < 128 and c in PRINTABLE:
+			s2 += c
+		else:
+			#s2 += '\\{0:03d}'.format(ord(c))
+			s2 += '\\x'+hex(ord(c))[2:].zfill(2) # must pad 1-digit hex values for unprintable characters
+	return s2
+
+def make_printable(s, substitute='~',nochange=PRINTABLE, change=''):
 	"""Substitute all nonprintable characters with a surrogate (presumably printable) character."""
 	if not isinstance(s,str):
 		s = str(s)
@@ -526,6 +537,15 @@ def make_printable(s, substitute='~',nochange=PRINTABLE,change=''):
 		return s.translate(table)
 	msg = "{0}:{1}:\n  Unable to process non-string argument (type {2} to make printable.".format(
 		          __file__,__name__,type(s))
+	warn(msg)
+
+def escape_unprintable(s, nochange=PRINTABLE):
+	"""Substitute all nonprintable characters with a hex representation of their ascii numerical value."""
+	if not isinstance(s,str):
+		s = str(s)
+	if isinstance(nochange,str) and isinstance(s,str):
+		return s.encode() # this actually ignores the nochange and PRINTABLE variables
+	msg = "{0}:{1}:\n  Unable to process non-string argument (type {2} to make printable.".format(__file__,__name__,type(s))
 	warn(msg)
 
 def contains(s,characters=PUNC):
