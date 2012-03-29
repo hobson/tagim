@@ -24,30 +24,24 @@ TODO:
 	this fails: tagim -i /home/hobs/photo...jpg --background  
 	            tagim hello world
 	        Error: Couldn't find the image file at 'Status=0 after copying user-designated image file at '/media/Win7/Users/Hobs/Documents/Photos/2008_10 MDR, Catalina, San Diego/IMG_3629.JPG' to dekstop background image location.'Image file name: 'Status=0 after copying user-designated image file at '/media/Win7/Users/Hobs/Documents/Photos/2008_10 MDR, Catalina, San Diego/IMG_3629.JPG' to dekstop background image location.'
-Traceback (most recent call last):
-  File "/home/hobs/bin/tagim", line 230, in <module>
-    im.read()
-  File "/home/hobs/.local/lib/python2.7/site-packages/pyexiv2/metadata.py", line 107, in read
-    self.__image = self._instantiate_image(self.filename)
-  File "/home/hobs/.local/lib/python2.7/site-packages/pyexiv2/metadata.py", line 74, in _instantiate_image
-    raise IOError(ENOENT, os.strerror(ENOENT), filename)
-IOError: [Errno 2] No such file or directory: "Status=0 after copying user-designated image file at '/media/Win7/Users/Hobs/Documents/Photos/2008_10 MDR, Catalina, San Diego/IMG_3629.JPG' to dekstop background image location."
 
 """
 
 # eliminates insidious integer division errors, otherwise '(1.0 + 2/3)' gives 1.0 (in python <3.0)
 from __future__ import division
 
-from warnings import warn
+import tg;
 from tg.utils import zero_if_none, sign
 from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN
+import tg.nlp as nlp
+
+from warnings import warn
+import pyexiv2
 
 import os
 import re
 
 version = '0.7'
-
-import tg;
 (user,home) = tg.user_home();
 
 # I can't imagine GPS positions ever needing to be recorded better
@@ -133,8 +127,6 @@ def rotate_image(filename,angle=0.0,resample='bicubic',expand=True,flip=0):
 	>>> filecmp.cmp(imp,imp90, shallow=False)
 	False
 	"""
-	import tg.nlp as nlp
-	import pyexiv2
 	from PIL import Image
 	if not nlp.is_number(angle) or abs(float(angle))<=1e-6:
 		angle = 0
@@ -189,7 +181,6 @@ def display_meta(im):
 	exif = im.exif_keys
 	iptc = im.iptc_keys
 	xmp  = im.xmp_keys
-	import tg.nlp as nlp
 
 	print '-------------EXIF Data-------------------'
 	for k in exif:
@@ -413,7 +404,6 @@ def exif_gps_strings(location_string):
 	return latlon2exif(loctuple[0],loctuple[1],loctuple[2])
 
 def exif_unrationalize_gps(gps_exif_dict):
-	#from tg.nlp import SPACE
 	# turn an exif representation of a gps position into a pair of floats for lat lon 
 	#   gps_exif_dict = {lat_label: latrat, lon_label: lonrat, lat_label+ref_suffix: latref, lon_label+ref_suffix: lonref}, with floats expressed as fractions in deg, min, sec
 	# result = (lat,lon)

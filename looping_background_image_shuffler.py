@@ -66,14 +66,14 @@ def shuffle_background_then_sleep(min_period=3600,max_period=None):
 	tg.tagim.shuffle_background_photo()
 	# None is smaller than any integer: `min(-5,None)` gives None, but `max(5,None)` gives 5
 
-	print min_period,max_period;
+	#print min_period,max_period;
 	if ( max_period and type(max_period)==int and max_period>=1.1*MIN_DELAY and max_period>min_period
 	      and type(min_period)==int and min_period and min_period>0 ):
 		dt = random.randint(min(min_period,MAX_DELAY), min(max_period,MAX_DELAY))
 	else: # reverse the assumed order of the arguments if only one given (one argument means it's max, not min)
 		dt  = min(max(min_period,MIN_DELAY),MAX_DELAY)
 	a = (dt,'s') if dt<0.5*3600 else (dt/3600,'hr');
-	print "Done shuffling now sleeping for {0} {1}...".format(a[0],a[1])
+	#print "Done shuffling now sleeping for {0} {1}...".format(a[0],a[1])
 	time.sleep(dt)  # Delay for N seconds
 
 #while True:
@@ -85,7 +85,11 @@ def stop(signum, frame):
 signal.signal(signal.SIGTERM, stop)
 
 # probably unnecessary to define __main__, since this can ONLY be run as a script
-#if __name__ == '__main__':
-while not stop_event.is_set():
-	shuffle_background_then_sleep(o.N1,o.N2)
+if __name__ == '__main__':
+	start_time = 0
+	sleep_time = 2
+	while not stop_event.is_set():
+		if (time.time()-start_time)>o.N1:
+			start_time = time.time()
+			shuffle_background_then_sleep(2,2) # ignores o.N2
 

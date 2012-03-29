@@ -46,9 +46,8 @@ from email.Encoders import encode_base64
 
 def send(subject = "(No Subject)", text = "(No Body)", to = 'knowledge@totalgood.com',
 	     from_addr = 'knowledge@totalgood.com', user = 'hobsonlane@gmail.com', server='smtp.gmail.com', password = '', attachments=[],
-	     size = '', wrap_html = False, html_format = False):
+	     size = None, wrap_html = False, html_format = False):
 	from os import error
-	
 	#print "Using tg.mail to send e-mail"
 	if not from_addr:
 		from_addr = user
@@ -92,12 +91,14 @@ def send(subject = "(No Subject)", text = "(No Body)", to = 'knowledge@totalgood
 
 	if not len(attachments)>0:
 		warnings.warn("No attachments were received by tg.mail.send()")
+	if not size:
+		(attachments,size) = optimize_size(attachments)
 	if type(attachments) == type([]):
 		for attachmentPath in attachments:
 			print attachmentPath
-			msg.attach(getAttachment(attachmentPath,int(size)))
+			msg.attach(getAttachment(attachmentPath,size))
 	elif type(attachments) == type((str,'')):
-		msg.attach(getAttachment(attachments,int(size)))
+		msg.attach(getAttachment(attachments,size))
 	else:
 		warnings.warn("Attachments parameter was of invalid type: ",type(attachments))
 
@@ -112,6 +113,8 @@ def send(subject = "(No Subject)", text = "(No Body)", to = 'knowledge@totalgood
 	print('Successflly sent email titled {subject} to {to}'.format(subject=subject,to=to))
 
 def getAttachment(attachmentFilePath,size):
+	if isinstance(size,str):
+		size=int(size)
 	if not os.path.exists(attachmentFilePath):
 		warn('Attachment path is invalid: '+attachmentFilePath)
 
@@ -149,6 +152,19 @@ def getAttachment(attachmentFilePath,size):
 
 	attachment.add_header('Content-Disposition', 'attachment', filename=os.path.basename(attachmentFilePath))
 	return attachment
+
+# TODO: 
+def get_size(attachmentFilePaths):
+	import Image
+	size = None
+	pass
+	return size
+# TODO: 
+def optimize_size(attachmentFilePaths):
+	pass
+	size = get_size(attachmentFilePaths)
+	return (attachmentFilePaths, size)
+
 
 def resize_image(attachmentFilePath, max_dimension=None, width=None, height=None):
 	import tempfile, Image

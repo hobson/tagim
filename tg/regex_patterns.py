@@ -107,10 +107,13 @@ PATH_PATTERNS = dict(
 	ANY          = r'['+os.path.sep+r']*', # add in colon (os.curdir) for DOS drive designations
 	)
 
+# TODO: cosolidate with UTIL_PATTERNS.FLOAT and others
 QUANT_PATTERNS = dict(
 	# HL: added some less common field/column separators: colon, vertical_bar
 	SEP                  = r'\s*[\s,;\|:]\s*', 
 	DATE_SEP             = r'\s*[\s,;\|\-\:\_\/]\s*',
+	# based on DATE_SEP (with \s !!) ORed with case insensitive connecting words like "to" and "'till"
+	RANGE_SEP            = r"(?i)\s*(?:before|after|then|(?:(?:un)?(?:\')?til)|(?:(?:to)?[\s,;\|\-\:\_\/]{1,2}))\s*", 
 	TIME_SEP             = r'\s*[\s,;\|\-\:\_]\s*',
 	# HL: added sign, spacing, & exponential notation: 1.2E3 or +1.2 e -3
 	FLOAT                = r'[+-]?\d+(?:\.\d+)?(?:\s?[eE]\s?[+-]?\d+)?', 
@@ -139,8 +142,11 @@ QUANT_PATTERNS = dict(
 	MONTH                = r'[01]\d',   # 01-12
 	DAY         = r'[0-2]\d|3[01]',     # 01-31
 	HOUR        = r'[0-1]\d|2[0-4]',    # 01-24
-	MINUTE      = r'[0-5]\d',           # 01-59
-	SECOND      = r'[0-5]\d(?:\.\d+)?', # 01-59
+#	MONTH                = r'[01]?\d',   # 1-12 and 01-09
+#	DAY         = r'[0-2]?\d|3[01]',    #  1-31 and 01-09
+#	HOUR        = r'[0-1]?\d|2[0-4]',   #  1-24 and 01-09
+	MINUTE      = r'[0-5]\d',           # 00-59
+	SECOND      = r'[0-5]\d(?:\.\d+)?', # 00-59
 	)
 
 #WARN: each of the lat/lon/alt elements needs to stop and not worry about armin/arcsec as soon as they get a decimal point, especially if no arcmin or arcsec units are given
@@ -165,18 +171,54 @@ POINT_PATTERN = re.compile(r"""
 				(?P<altitude_units>km|m|mi|ft|nm|nmi|mile|kilometer|meter|feet|foot|nautical[ ]mile)[s]?)
 	)?
 	\s*$
-""" % QUANT_PATTERNS, re.X | re.I) # HL: added case insensitivity
+""" % QUANT_PATTERNS, re.X | re.I) # HL: added case insensitivity which seemed to break things
 
-DATETIME_PATTERN = re.compile(r"""
-	(?P<date>
+DATE_PATTERN = re.compile(r"""
 		(?P<y>%(YEAR)s)%(DATE_SEP)s
 		(?P<mon>%(MONTH)s)%(DATE_SEP)s
-		(?P<d>%(DAY)s) ) 
-	(?:%(DATE_SEP)s)?
-	(?P<time>
+		(?P<d>%(DAY)s)
+""" % QUANT_PATTERNS, re.X)
+
+TIME_PATTERN = re.compile(r"""
 		(?P<h>%(HOUR)s)%(TIME_SEP)s
 		(?P<m>%(MINUTE)s)%(TIME_SEP)s
-		(?P<s>%(SECOND)s) )
+		(?P<s>%(SECOND)s) 
+""" % QUANT_PATTERNS, re.X)
+
+DATETIME_PATTERN = re.compile(r'(?P<date>'+DATE_PATTERN.pattern+r')(?:%(DATE_SEP)s)?(?P<time>'+TIME_PATTERN.pattern+r')' % QUANT_PATTERNS, re.X)
+
+DATE_OR_TIME_PATTERN = re.compile(r"""
+	(?P<date>"""
+	+DATE_PATTERN.pattern+
+r""")|
+	(?:%(DATE_SEP)s)?
+	(?P<time>"""
+	+TIME_PATTERN.pattern+
+r""")
+""" % QUANT_PATTERNS, re.X)
+
+#DATE_ANDOR_TIME_PATTERN = re.compile(r"""
+#	(?P<date>"""
+#	+DATE_PATTERN.pattern+
+#r""")?
+#	(?:%(DATE_SEP)s)?
+#	(?P<time>"""
+#	+TIME_PATTERN.pattern+
+#r""")|(?:
+#	(?P<time>"""
+#	+TIME_PATTERN.pattern+
+#r""")?
+#	(?:%(DATE_SEP)s)?
+#	(?P<date>"""
+#	+DATE_PATTERN.pattern+
+#r"""))
+#""" % QUANT_PATTERNS, re.X)
+
+
+RANGE_PATTERN = re.compile(r"""
+	(?P<left>%(FLOAT)s)
+	(?:%(RANGE_SEP)s)
+	(?P<right>%(FLOAT)s)
 """ % QUANT_PATTERNS, re.X)
 
 def _test():

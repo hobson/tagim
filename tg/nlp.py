@@ -72,18 +72,22 @@ except ImportError:
 #	PRINTABLE = SPACE + PUNC + LETTER
 	PRINTABLE = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c'
 # warnHL: list(set(list(x))) changes the order of x!
-DIGIT = '0123456789'
-BADPUNC = list(set(PUNC).difference(set("'-./:_"))) # allow dots dashes and underscores in column headers and names (maybe even slashes)
+DIGIT             = '0123456789'
+BADPUNC           = list(set(PUNC).difference(set("'-./:_"))) # allow dots dashes and underscores in column headers and names (maybe even slashes)
 BADPUNC.sort() # new list must have been allocated memory for sort in-place to work
-BADPUNC = ''.join(BADPUNC)
-WORDSPACE = SPACE + '-._' # additional word dividers besides whitespace
-NAMELETTER = ' '+DIGIT+LETTER+'._' # some names/variables use underscores and digits and dots
-NONNAMELETTER = list(set([chr(x) for x in range(256)]).difference(set(NAMELETTER)))
+BADPUNC           = ''.join(BADPUNC)
+WORDSPACE         = SPACE + '-._' # additional word dividers besides whitespace
+NAMELETTER        = DIGIT+LETTER+'._ ' # some names use underscores and digits and dots and spaces
+VARIABLELETTER    = DIGIT+LETTER+'._'  # some names/variables use underscores and digits and dots
+NONVARIABLELETTER = ''.join(list(set([chr(x) for x in range(256)]).difference(set(VARIABLELETTER))))
+NONNAMELETTER     = list(set([chr(x) for x in range(256)]).difference(set(NAMELETTER)))
 NONNAMELETTER.sort()  # new list must have been allocated memory for sort in-place to work
-NONNAMELETTER = ''.join(NONNAMELETTER)
-NONPRINTABLE = list(set([chr(x) for x in range(256)]).difference(set(PRINTABLE)))
+NONNAMELETTER     = ''.join(NONNAMELETTER)
+NONPRINTABLE      = list(set([chr(x) for x in range(256)]).difference(set(PRINTABLE)))
 NONPRINTABLE.sort()  # new list must have been allocated memory for sort in-place to work
-NONPRINTABLE = ''.join(NONPRINTABLE)
+NONPRINTABLE      = ''.join(NONPRINTABLE)
+NONLETTER         = ''.join(list(set([chr(x) for x in range(256)]).difference(set(LETTER))))
+NONVARIABLE       = ''.join(list(set([chr(x) for x in range(256)]).difference(set(VARIABLELETTER))))
 
 def dedupe_whitespace(s,spacechars=' '):
 	"""Merge whitespace characters (replace repeated whitespace characters with a single whitespace character).
@@ -113,20 +117,16 @@ def standardize_whitespace(s,spacechars=SPACE):
 
 # actHL: convert this to set subtraction like NONPRINTABLE = ''.join(set([chr(x) for x in range(256)]).difference(set(PRINTABLE)))
 def non_list_of_characters(s=LETTER):
-	"""Produce a list of characters that is the negative set of letters provided.
+	"""Produce a list of characters that is the complement set of the characters provided.
 	
 	The returned character array (string) is the list of all characters NOT in the input."""
-	chr_array = []
-	for c in range(256):
-		if chr(c) not in s:
-			chr_array.append(chr(c))
-	return(''.join(chr_array)) 
+	return ''.join(list(set([chr(x) for x in range(256)]).difference(set(LETTER))))
 
 # unfortunately this produces a list that includes a lot of hex characters (unprintables) that are unlikely to ever appear in an ASCII text file or CSV file when binary values not converted to hex characters
-NONLETTER = non_list_of_characters(s=LETTER)
 TYPICAL_NAME_LEN = 10
-YES = [True,1,'1','true','True','y','Y','yes','Yes'] # floating value of 1.0 should probably not be considered "yes"
-NO = [False,0,'0','false','False','n','N','no','No'] # floating value of 0.0 should probably not be considered "no"
+YESSTR = [True,1,'1','true','True','y','Y','yes','Yes'] # floating value of 1.0 should probably not be considered "yes"
+NOSTR = [False,0,'0','false','False','n','N','no','No'] # floating value of 0.0 should probably not be considered "no"
+BOOLSTR = YESSTR+NOSTR
 NUMSTR = ['Null','null','NULL','None','none','NONE','Void','void','VOID','N/A','n/a','not applicable','Not Applicable','Invalid','invalid', 'INVALID','Inf','INF','inf','NaN','NAN','+inf','+INF','+Inf','-inf','-INF','-Inf']
 EMPTYSTR = ['',' ',"\t","''",'""','?'] # might also consider whitespace strings or single whitespace characters as Null or empty values for numbers
 PK_NAMES = ['code','Code','cd','Cd','no','No','Number','number','num','Num','id','Id','ID','#','pk','PK','key','Key','seq','Seq','sequence','Sequence'] # the last word in a primary key column name
@@ -429,26 +429,49 @@ def is_iter(obj):
 		return True
 	return False
 
-def is_float(s,include_nan=False,include_empty=False):
+def is_float(s,include_nan=True,include_empty=True,include_bool=True):
+	if isinstance(s,str):
+		s = s.strip()
 	if include_nan and s in NUMSTR:
-		return True
+		return True #float(s) # True, nan, +inf, or -inf (need to chose)
 	if include_empty and s in EMPTYSTR:
-		return True
+		return True #0.
+	if include_bool and s in BOOLSTR:
+		return True #float(s)
 	if isinstance(s,bool): 
-		return False
-	try:
-		float(s)
 		return True
+	try:
+		x = float(s)
+		if x == 0:
+			return True
+		return x
 	except (ValueError, TypeError): # typeerror for None objects
 		return False
 
-def is_number(s,include_nan=False,include_empty=False):
-	return is_float(s,include_nan=include_nan)
+def is_number(s,include_nan=True,include_empty=True,include_bool=True):
+	return is_float(s,include_nan,include_empty,include_bool)
+	
+# TODO:
+#   Try other parsers in series
+#   1. google datetimeparser module handles "tomorrow" and "day before yesterday"
+#   2. the QUANT.DATETIME_PATTERN above might catch some dates missed by others
+def is_datetime(s):
+	import dateutil.parser as p
+	try:
+		dt = p.parse(s) # returns a datetime.datetime instance
+	except ValueError:
+		return False
+	return dt
 
 # whether the string can be parsed into two values (start and end) plus an optional string for the units (e.g. "Mon-Fri", "1 to 7 meters")
 def is_range(s):
-	raise(RuntimeError("Not yet implemented"))
-	return s
+	from tg.regex_patterns import RANGE_PATTERN
+	mo = re.compile(RANGE_PATTERN).match(s)
+	print mo
+	if mo:
+		return mo.groups()
+	else:
+		return False
 
 
 def is_int(s,include_nan=False,include_empty=False):
@@ -466,6 +489,21 @@ def is_int(s,include_nan=False,include_empty=False):
 
 def is_integer(s,include_nan=False,include_empty=False):
 	return is_int(s=s,include_nan=include_nan,include_empty=include_empty)
+
+# does the string represent a quantity? date, time, range, float, int
+def is_quant(s):
+	import time
+	x = is_datetime(s)
+	if x:
+		return time.mktime(x.timetuple()) # converts a time to seconds since Epoch
+	#x = is_gps()
+	x = is_range(s)
+	if x and len(x)==2:
+		return [x[0],x[1]]
+	x = is_number(s)
+	if isinstance(x,float):
+		return x
+	
 	
 # used to produce FDA database format strings?
 def round_str(s,N=0,include_nan=False,include_empty=False):
@@ -473,6 +511,8 @@ def round_str(s,N=0,include_nan=False,include_empty=False):
 		return False
 	return format(float(s), '.'+str(N)+'f')
 
+
+	
 # This is to deal with the fact that list has to be created in memory with separate statement before sort() can be performed on it
 def sort_characters(s,order=True):
 	"""Sort the characters in a string as if they are a list of characters.
@@ -666,7 +706,37 @@ def variablize(s=''):
 	"""
 	# [0:255] ensures variable name, file name, or dictionary key is truncated to reasonable length
 	# actHL: need to make sure acronyms aren't uncapitalized
-	return titlize(s.split('.')[0]).translate(None,NONLETTER)[0:256]
+	return titlize(s.split('.')[0]).translate(None,NONVARIABLE)[0:256] # limit variables to len 256
+	# return titlize(s.split('.')[0]).translate(None,NONLETTER)[0:256]
+
+def split_string(source,splitlist):
+    """
+    Like str.split, but splits using more than one "splitter" or delimitter, like nltk.tokenize
+    
+    Probably efficiency improvements are possible.
+    
+    Attributions:
+    Inspired by Udacity.com/CS101, test cases came directly from howemwork.
+
+    Examples:
+    >>> print split_string("This is a test-of the,string separation-code!", " ,!-")
+    ['This', 'is', 'a', 'test', 'of', 'the', 'string', 'separation', 'code']
+    >>> print split_string("After  the flood   ...  all the colors came out.", " .")
+    ['After', 'the', 'flood', 'all', 'the', 'colors', 'came', 'out']
+    """
+    # like nltk.tokenize()
+    result =[]
+    i0=0
+    nonsep=False
+    for i,c in enumerate(source):
+        if c in splitlist:
+            if i>i0 and nonsep:
+                result.append(source[i0:i])
+            i0=i+1
+            nonsep = False
+        else:
+            nonsep = True
+    return result
 
 def filename2modelname(filename,prefix='NLPModel'):
 	"""Create a variable name suitable as a table name for django models using a filename string."""
@@ -705,7 +775,7 @@ class Features(object):
 		self.s = s
 		# don't use split() which only works for words delimitted by either whitespace or a user-designated single character
 		self.wordlist = nltk.word_tokenize(self.s)
-		# actHL: better to use regular expressions that this inaccurate assumption that all solitary s's are the result of a splitup possive word ending in 's, 
+		# TODO: better to use regular expressions that this inaccurate assumption that all solitary s's are the result of a splitup possive word ending in 's, 
 		#        otherwise the text could coneivably contain things like 's' or "s" and trigger this crudeposessive fix
 		# deal with possessive words that were garbled due to apostrophe splitting
 		#    [1:] slice ensures that i-1 is a valid index ("'s" can't be the first word!)

@@ -16,10 +16,10 @@ echo -n "${TIMESTAMP}	${NUMVISITS}	" >> "$FILENAME"
 wget --output-document=- --tries=6 --no-http-keep-alive --no-check-certificate --user-agent="$USERAGENT"--referer="$REFERRERURL" --ignore-length --save-cookies="$COOKIEFILE" --load-cookies="$COOKIEFILE" --wait=5 --random-wait https://mtgox.com | grep -P -o '(?<=Weighted Avg:<span>)\s*\$[0-9]{1,2}[.][0-9]{3,5}' >> "$FILENAME"
 
 #DOESN'T WORK FOR SOME REASON
-MTGOXPRICE=`wget --output-document=- --tries=6 --no-http-keep-alive --no-check-certificate --user-agent="$USERAGENT"--referer="$REFERRERURL" --ignore-length --save-cookies="$COOKIEFILE" --load-cookies="$COOKIEFILE" --wait=5 --random-wait https://mtgox.com | grep -P -o '(?<=Weighted Avg:<span>)\s*\$[0-9]{1,2}[.][0-9]{3,5}'`
+#MTGOXPRICE=`wget --output-document=- --tries=6 --no-http-keep-alive --no-check-certificate --user-agent="$USERAGENT"--referer="$REFERRERURL" --ignore-length --save-cookies="$COOKIEFILE" --load-cookies="$COOKIEFILE" --wait=5 --random-wait https://mtgox.com | grep -P -o '(?<=Weighted Avg:<span>)\s*\$[0-9]{1,2}[.][0-9]{3,5}'`
 
 echo "Last 3 lines of  '${FILENAME}' is for ${TIMESTAMP} is ..."
-tail -n 3 "$FILENAME"
+tail -n 10 "$FILENAME"
 
 #echo "${TIMESTAMP}	${NUMVISITS}	${MTGOXPRICE} " >> "$FILENAME"
 
