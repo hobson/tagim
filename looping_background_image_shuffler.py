@@ -60,7 +60,7 @@ def shuffle_background_then_sleep(min_period=3600,max_period=None):
 	
 	If only one argument is given (min_period) then it is interpretted as a maximum time period (not min).
 	"""
-	MIN_DELAY = 5; # don't let the delay go below 5 seconds
+	MIN_DELAY = 1; # don't let the delay go below 1 second
 	MAX_DELAY = 7*24*3600; # don't let the delay go beyond 1 week
 	print "Shuffling the background photo..."
 	tg.tagim.shuffle_background_photo()
@@ -72,9 +72,9 @@ def shuffle_background_then_sleep(min_period=3600,max_period=None):
 		dt = random.randint(min(min_period,MAX_DELAY), min(max_period,MAX_DELAY))
 	else: # reverse the assumed order of the arguments if only one given (one argument means it's max, not min)
 		dt  = min(max(min_period,MIN_DELAY),MAX_DELAY)
-	a = (dt,'s') if dt<0.5*3600 else (dt/3600,'hr');
+	#a = (dt,'s') if dt<0.5*3600 else (dt/3600,'hr');
 	#print "Done shuffling now sleeping for {0} {1}...".format(a[0],a[1])
-	time.sleep(dt)  # Delay for N seconds
+	time.sleep(dt)  # Delay for dt seconds
 
 #while True:
 #	shuffle_background()

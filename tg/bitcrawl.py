@@ -222,71 +222,92 @@ def get_all_links(page):
 			page = page[endpos:]
 		else:
 			break
-	return links
+	return links # could use set() to filter out duplicates
 
-def get_links(seed,max_depth=1,max_breadth=1e6,max_links=1e6):
-	tocrawl = [seed]
+# TODO: set default url if not url
+# TODO: tries to browse to weird URLs and bookmarks, e.g. "href=#Printing"
+# TODO: need to count stats like how many are local and how many unique second and top level domain names there are
+def get_links(url='https://en.bitcoin.it/wiki/Trade',max_depth=1,max_breadth=1e6,max_links=1e6,verbose=False):
+	import datetime
+	from tg.tz import Local
+	tocrawl = [url]
 	crawled = []
 	depthtocrawl = [0]*len(tocrawl)
 	depth = 0
 	page = tocrawl.pop()
 	depth = depthtocrawl.pop()
 	links = 0
+	if verbose:
+		print 'Counting links by crawling URL "'+url+'" to a depth of '+str(max_depth)+'...'
 	while depth<=max_depth and links<max_links:
 		links += 1
 		if page not in crawled:
 			i0=len(tocrawl)
-			union(tocrawl, get_all_links(get_page(page)))
+			link_urls = set(get_all_links(get_page(page))) # set() makes sure all links are unique
+			union(tocrawl, link_urls)
+			if verbose:
+				print 'Retrieved '+str(len(link_urls))+' links at "'+ page + '"'
 			crawled.append(page)
 			for i in range(i0,len(tocrawl)):
 				depthtocrawl.append(depth+1)
 		if not tocrawl: break
 		page  = tocrawl.pop(0) # FIFO to insure breadth first search
 		depth = depthtocrawl.pop(0) # FIFO
-	return crawled
+	dt = datetime.datetime.now(tz=Local)
+	return {url:{'datetime':str(dt),'links':len(crawled),'depth':max_depth}}
 
-def rest_json(url='https://api.bitfloor.com/book/L2/1'):
-	import json
+# TODO: set default url if not url
+def rest_json(url='https://api.bitfloor.com/book/L2/1',verbose=False):
+	import json, datetime
+	from tg.tz import Local
+	if verbose:
+		print 'Getting REST data from URL "'+url+'" ...'
 	data_str = Bot().GET(url)
-	#print data_str
-	data     = json.loads( data_str )
-	#print data
-	return data
+	dt = datetime.datetime.now(tz=Local)
+	if verbose:
+		print 'Retrieved a '+str(len(data_str))+'-character JSON string at '+ str(dt)
+	dat     = json.loads( data_str )
+	dat['datetime']=str(dt)
+	return {url:dat}
 
-def bitfloor_book(bids=None,asks=None):
-	dat = rest_json()
+# TODO: set default url if not url
+def bitfloor_book(url='https://api.bitfloor.com/book/L2/1',bids=None,asks=None,verbose=False):
+	return rest_json(url=url,verbose=verbose) 
 
-def mine_data(url='',prefixes=r'',regexes=r''):
-	print 'Mining URL "'+url+'" ...'
+# TODO: set default url if not url
+def mine_data(url='',prefixes=r'',regexes=r'',verbose=False):
+	import datetime
+	from tg.tz import Local
+	if verbose:
+		print 'Mining URL "'+url+'" ...'
 	if not url: 
 	    return None
 	page=Bot().GET(u)
-	dat = dict()
-	print 'Retrieved '+str(len(page))+' characters/bytes.'
+	dt = datetime.datetime.now(tz=Local)
+	dat = {'datetime':str(dt)}
+	if verbose:
+		print 'Retrieved '+str(len(page))+' characters/bytes at '+ str(dt)
 	if isinstance(prefixes,list):
 		for i,[prefix,regex] in enumerate(prefixes):
 			r = re.compile(r'(?:'+prefix+r')\s*'+r'(?P<quantity>'+regex+r')') # lookbehind group NOT required: r'(?<=...)'
 			mo = r.search(page)
 			if mo:
-				import pprint
 				q = mo.group(mo.lastindex)
-				#print 'found the value:', q
 				dat[i]=q
 	elif isinstance(prefixes,dict):
 		for name,[prefix,regex] in prefixes.items():
-			#print 'searching for:',name,prefix,regex
 			r = re.compile(r'(?:'+prefix+r')\s*'+r'(?P<quantity>'+regex+r')') # lookbehind group NOT required: r'(?<=...)'
 			mo = r.search(page)
 			if mo:
-				import pprint
 				q = mo.group(mo.lastindex)
-				#print 'found the value:', q
 				dat[name]=q
 	return dat
 
 if __name__ == "__main__":
 	import re
 	o = parse_args()
+	#bitcoin_url = "https://en.bitcoin.it/wiki/Trade"
+	#bifloor_url = 'https://api.bitfloor.com/book/L2/1'
 
 #	data = rest_json()
 #	print type(data)
@@ -299,24 +320,40 @@ if __name__ == "__main__":
 	dat = dict()
 	if type(o.urls)==dict:
 		for u,r in o.urls.items():
-			dat[u]=mine_data(u,r)
+			dat[u]=mine_data(u,r,verbose=not o.quiet)
 #	elif type(o.urls)==list and len(o.urls)==len(o.prefix)==len(o.regex):
 #		for i,u in enumerate(o.urls):
-#			mine_data(u,o.prefix[i],o.regex[i])
+#			mine_data(u,o.prefix[i],o.regex[i],verbose=not o.quiet)
 #	elif type(o.urls)==type(o.prefix)==type(o.regex)==str and len(o.urls)>1 and len(o.regex)>0 and len(o.prefix)>0:
-#		mine_data(o.urls,o.prefix,o.regex)
+#		mine_data(o.urls,o.prefix,o.regex,verbose=not o.quiet)
 	else:
 		raise ValueError('Invalid URL, prefix, or regex argument.')
-	import pprint
-	pprint.pprint(dat)
-	bfdat = rest_json()
-	pprint.pprint(bfdat)
-	with open(o.path,'a') as fid:
+	
+	if o.verbose:
+		import pprint
+		pprint.pprint(dat)
+	bfdat = bitfloor_book(verbose=not o.quiet)
+	if o.verbose:
+		pprint.pprint(bfdat)
+	links = get_links(max_depth=0,verbose=not o.quiet)
+	with open(o.path,'r+') as f: # 'a+' and 'w+' don't work
+		# pointer should be at the end already due to append mode, but it's not,
+		f.seek(0,2)  # go to position 0 relative to 2=EOF (1=current, 0=begin)
+		if f.tell()>3:
+			f.seek(-3,2) # if you do this before seek(0,2) on a "a+" or "w+" file you get "[Errno 22] Invalid argument"
+			#terms=f.read()
+			#if terms=='\n]\n':
+			#f.seek(-3,2)
+			f.write(",\n") # to allow continuation of the json array/list
+		else:
+			f.write('[\n')  # start a new json array/list
 		import json
-		fid.write(json.dumps(dat))
-		fid.write(json.dumps({'https://api.bitfloor.com/book/L2/1':bfdat}))
-
-
-	#links = get_links("https://en.bitcoin.it/wiki/Trade",1)
-	#print len(set(links))
+		f.write(json.dumps(dat,indent=2))
+		f.write(",\n") # delimit records/object-instances within an array with commas
+		f.write(json.dumps(bfdat,indent=2))
+		f.write(",\n") # delimit records/object-instances within an array with commas
+		f.write(json.dumps(links,indent=2))
+		f.write("\n]\n") #  terminate array brackets and add an empty line
+		if o.verbose:
+			print 'Appended json records to "'+o.path+'"'
 
