@@ -30,38 +30,43 @@
 
 """
 
-FILENAME='/home/hobs/Notes/notes_repo/bitcoin popularity trend.txt'
+FILENAME='/home/hobs/Notes/notes_repo/bitcoin trend data.json'
 
 def parse_args():
 	# TODO: "meta-ize" this by only requiring number format specification in some common format 
 	#       like sprintf or the string input functions of C or python, and then convert to a good regex
 	# TODO: add optional units and suffix patterns
-	URLs=dict([
-				('http://bitcoincharts.com/about/markets-api/', 
-					[ # TODO: make this a dict instead of a list, with the key acting as the variable/quantity name
-					[r'<td class="label">Blocks</td><td>',          # (?<= ... )\s*
-					 r'[0-9]{1,9}'                               ],  # (...)
-					[r'<td class="label">Total BTC</td><td>',
-					 r'[0-9]{0,2}[.][0-9]{1,4}[MmKkGgBb]' ], 
-					[r'<td class="label">Difficulty</td><td>',
-					 r'[0-9]{1,10}' ], 
-					[r'<td class="label">Estimated</td><td>',
-					 r'[0-9]{1,10}' ] ,
-					[r'<td class="label">Network total</td><td>',
-					 r'[0-9]{0,2}[.][0-9]{1,4}' ],
-					[r'<td class="label">Blocks/hour</td><td>',
-					 r'[0-9]{0,3}[.][0-9]{1,4}' ]
-					],
-				),
-				('https://en.bitcoin.it/wiki/Trade', [[
-					r'accessed\s',
-					r'([0-9],)?[0-9]{3},[0-9]{3}' ]]
-				), 
-				('https://mtgox.com',                [[
-					r'Weighted Avg:<span>',            # (?<= ... )\s*
-					r'\$[0-9]{1,2}[.][0-9]{3,5}',    ]] # (...)
-				), 
-			])
+	URLs={'http://bitcoincharts.com/about/markets-api/': 
+			{ 'blocks':
+				[r'<td class="label">Blocks</td><td>',          # (?<= ... )\s*
+				 r'[0-9]{1,9}'                               ],  # (...)
+			  'total_btc': # total money supply of BTC
+				[r'<td class="label">Total BTC</td><td>',
+				 r'[0-9]{0,2}[.][0-9]{1,4}[MmKkGgBb]' ], 
+			  'difficulty':
+				[r'<td class="label">Difficulty</td><td>',
+				 r'[0-9]{1,10}' ], 
+			  'estimated': # total money supply of BTC
+				[r'<td class="label">Estimated</td><td>',
+				 r'[0-9]{1,10}' ] ,
+			  'blocks':     # total money supply of BTC blocks
+				[r'<td class="label">Estimated</td><td>\s*[0-9]{1,10}\s*in',
+				 r'[0-9]{1,10}' ] ,
+			  'hash_rate':     # THash/s on the entire BTC network
+				[r'<td class="label">Network total</td><td>',
+				 r'[0-9]{0,2}[.][0-9]{1,4}' ],
+			  'block_rate':     # blocks/hr on the entire BTC network
+				[r'<td class="label">Blocks/hour</td><td>',
+				 r'[0-9]{0,3}[.][0-9]{1,4}' ] } ,
+		'https://en.bitcoin.it/wiki/Trade': {
+			'traffic':
+				[r'accessed\s',
+				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
+		'https://mtgox.com':                {
+			'price':
+			[r'Weighted Avg:<span>',             # (?<= ... )\s*
+			 r'\$[0-9]{1,2}[.][0-9]{3,5}',]  } , # (...)
+		}
 	from argparse import ArgumentParser
 	p = ArgumentParser(description=__doc__.strip())
 	p.add_argument(
@@ -165,7 +170,6 @@ COOKIEFILE='/home/hobs/tmp/wget_cookies.txt'
 import urllib
 import urllib2
 
-
 class Bot:
 	"""A browser session that follows redirects and maintains cookies."""
 	def __init__(self):
@@ -187,7 +191,7 @@ class Bot:
 		self.url    = url
 		self.params = urllib.urlencode(parameters)
 		self.response = self.opener.open(url, self.params ).read()
-		return 
+		return self.response
 
 def get_page(url):
 	try:
@@ -243,27 +247,42 @@ def get_links(seed,max_depth=1,max_breadth=1e6,max_links=1e6):
 
 def rest_json(url='https://api.bitfloor.com/book/L2/1'):
 	import json
-	b = HttpBot()
-	data_str = b.GET(url)
+	data_str = Bot().GET(url)
 	#print data_str
 	data     = json.loads( data_str )
 	#print data
 	return data
+
+def bitfloor_book(bids=None,asks=None):
+	dat = rest_json()
 
 def mine_data(url='',prefixes=r'',regexes=r''):
 	print 'Mining URL "'+url+'" ...'
 	if not url: 
 	    return None
 	page=Bot().GET(u)
+	dat = dict()
 	print 'Retrieved '+str(len(page))+' characters/bytes.'
 	if isinstance(prefixes,list):
-		for [prefix,regex] in prefixes:
-			r = re.compile(r'(?<='+prefix+r')\s*'+r'(?P<quantity>'+regex+r')')
+		for i,[prefix,regex] in enumerate(prefixes):
+			r = re.compile(r'(?:'+prefix+r')\s*'+r'(?P<quantity>'+regex+r')') # lookbehind group NOT required: r'(?<=...)'
 			mo = r.search(page)
 			if mo:
 				import pprint
 				q = mo.group(mo.lastindex)
-				print 'found the value:', q
+				#print 'found the value:', q
+				dat[i]=q
+	elif isinstance(prefixes,dict):
+		for name,[prefix,regex] in prefixes.items():
+			#print 'searching for:',name,prefix,regex
+			r = re.compile(r'(?:'+prefix+r')\s*'+r'(?P<quantity>'+regex+r')') # lookbehind group NOT required: r'(?<=...)'
+			mo = r.search(page)
+			if mo:
+				import pprint
+				q = mo.group(mo.lastindex)
+				#print 'found the value:', q
+				dat[name]=q
+	return dat
 
 if __name__ == "__main__":
 	import re
@@ -277,16 +296,25 @@ if __name__ == "__main__":
 #	signin_results   = bot.POST('https://example.com/authenticator', {'passwd':'foo'})
 #	singoff_results  = bot.POST('https://example.com/deauthenticator',{})
 
+	dat = dict()
 	if type(o.urls)==dict:
 		for u,r in o.urls.items():
-			mine_data(u,r)
-	elif type(o.urls)==list and len(o.urls)==len(o.prefix)==len(o.regex):
-		for i,u in enumerate(o.urls):
-			mine_data(u,o.prefix[i],o.regex[i])
-	elif type(o.urls)==type(o.prefix)==type(o.regex)==str and len(o.urls)>1 and len(o.regex)>0 and len(o.prefix)>0:
-		mine_data(o.urls,o.prefix,o.regex)
+			dat[u]=mine_data(u,r)
+#	elif type(o.urls)==list and len(o.urls)==len(o.prefix)==len(o.regex):
+#		for i,u in enumerate(o.urls):
+#			mine_data(u,o.prefix[i],o.regex[i])
+#	elif type(o.urls)==type(o.prefix)==type(o.regex)==str and len(o.urls)>1 and len(o.regex)>0 and len(o.prefix)>0:
+#		mine_data(o.urls,o.prefix,o.regex)
 	else:
 		raise ValueError('Invalid URL, prefix, or regex argument.')
+	import pprint
+	pprint.pprint(dat)
+	bfdat = rest_json()
+	pprint.pprint(bfdat)
+	with open(o.path,'a') as fid:
+		import json
+		fid.write(json.dumps(dat))
+		fid.write(json.dumps({'https://api.bitfloor.com/book/L2/1':bfdat}))
 
 
 	#links = get_links("https://en.bitcoin.it/wiki/Trade",1)
