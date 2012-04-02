@@ -2,11 +2,32 @@
 """Crawls the web looking for quantitative information about bitcoin popularity.
 
 	Examples (require Internet connection):
-	# this will find and gedit a text file containing the indicated search terms
-	>>> bitcrawl.py # takes about a minute
-	329
-	>>> bitcrawl.py # takes a sec
-	329
+	>>> bitcrawl
+	Mining URL "https://en.bitcoin.it/wiki/Real_world_shops" ...
+	Retrieved 28835 characters/bytes at 2012-04-02 17:37:06.709302+08:00
+	Mining URL "https://mtgox.com" ...
+	Retrieved 22493 characters/bytes at 2012-04-02 17:37:07.840549+08:00
+	Mining URL "http://bitcoincharts.com/about/markets-api/" ...
+	Retrieved 7712 characters/bytes at 2012-04-02 17:37:14.518451+08:00
+	Mining URL "https://en.bitcoin.it/wiki/Main_Page" ...
+	Retrieved 24069 characters/bytes at 2012-04-02 17:37:16.770427+08:00
+	Mining URL "https://bitcoinconsultancy.com/wiki/Main_Page" ...
+	Retrieved 18188 characters/bytes at 2012-04-02 17:37:19.173755+08:00
+	Mining URL "https://en.bitcoin.it/wiki/Trade" ...
+	Retrieved 303426 characters/bytes at 2012-04-02 17:37:22.602371+08:00
+	Getting REST data from URL "https://api.bitfloor.com/book/L2/1" ...
+	Retrieved a 1004-character JSON string at 2012-04-02 17:37:24.520884+08:00
+	Checking wikipedia view rate for "Bitcoin"
+	Mining URL "http://stats.grok.se/en/latest/Bitcoin" ...
+	Retrieved 11745 characters/bytes at 2012-04-02 17:37:28.240635+08:00
+	Checking wikipedia view rate for "James_Surowiecki"
+	Mining URL "http://stats.grok.se/en/latest/James_Surowiecki" ...
+	Retrieved 11746 characters/bytes at 2012-04-02 17:37:29.574902+08:00
+	Counting links by crawling URL "https://en.bitcoin.it/wiki/Trade" to a depth of 0...
+	Retrieved 225 links at "https://en.bitcoin.it/wiki/Trade"
+	Appended json records to "/home/hobs/Notes/notes_repo/bitcoin trend data.json"
+	MtGox price is $4.79240
+
 	
 	Dependencies:
 		argparse -- ArgumentParser
@@ -14,16 +35,15 @@
 		urllib2
 
 	TODO:
-	1. Add option to filter out some common red herrings like .bash_history (or hobs's .bash_history_forever)
-	2. Add option to provide colorized/highlighted search result text abstracts like 
-	   recoll or google desktop, and select on to launch
-	3. add quiet and verbose options
-	4. deal with csv: http://www.google.com/trends/?q=bitcoin&ctab=0&geo=us&date=ytd&sort=0 , 
+	1. deal with csv: http://www.google.com/trends/?q=bitcoin&ctab=0&geo=us&date=ytd&sort=0 , 
 	      <a href='/trends/viz?q=bitcoin&date=ytd&geo=us&graph=all_csv&sort=0&scale=1&sa=N'>
 	      other examples in comments below
-	5. poll domain name registries to determine the number of domain names with "bitcoin" in them or beginning with "bit" or having "bit" and "coin" in them 
-	6. build website and REST to share bitcoin trend info, several domain names saved at bustaname under shopper@tg username 
+	2. poll domain name registries to determine the number of domain names with "bitcoin" in them or beginning with "bit" or having "bit" and "coin" in them 
+	3. build website and REST to share bitcoin trend info, several domain names saved at bustaname under shopper@tg username 
 	      pairbit, bitpair, coinpair, paircoin, coorbit, bitcorr, bitcoinarbitrage, etc
+	4. generalize the search with AI and ML to identify good and bad trends for all common proper names--stock symbols, etc
+	   a) write research paper to prove it does as good a job as a human stock analyst at predicting future price movements
+	   b) write a browser plugin that allows a human to supervise the machine learning and identify useful/relevant quantitative data
 
 	Copyright:
 	((c) Hobson Lane dba TotalGood)
@@ -36,8 +56,10 @@ def parse_args():
 	# TODO: "meta-ize" this by only requiring number format specification in some common format 
 	#       like sprintf or the string input functions of C or python, and then convert to a good regex
 	# TODO: add optional units and suffix patterns
-	URLs={'http://bitcoincharts.com/about/markets-api/': 
-			{ 'blocks':
+	URLs={'network': 
+			{ 
+			  'url': 'http://bitcoincharts.com/about/markets-api/',
+			  'blocks':
 				[r'<td class="label">Blocks</td><td>',          # (?<= ... )\s*
 				 r'[0-9]{1,9}'                               ],  # (...)
 			  'total_btc': # total money supply of BTC
@@ -58,14 +80,43 @@ def parse_args():
 			  'block_rate':     # blocks/hr on the entire BTC network
 				[r'<td class="label">Blocks/hour</td><td>',
 				 r'[0-9]{0,3}[.][0-9]{1,4}' ] } ,
-		'https://en.bitcoin.it/wiki/Trade': {
-			'traffic':
-				[r'accessed\s',
+		'trade': {
+			'url': 'https://en.bitcoin.it/wiki/Trade',
+			'visits':
+				[r'has\sbeen\saccessed\s',
 				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
-		'https://mtgox.com':                {
-			'price':
-			[r'Weighted Avg:<span>',             # (?<= ... )\s*
-			 r'\$[0-9]{1,2}[.][0-9]{3,5}',]  } , # (...)
+		'shop': {
+			'url': 'https://en.bitcoin.it/wiki/Real_world_shops',
+			'visits':
+				[r'has\sbeen\saccessed\s',
+				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
+		'bitcoin': {
+			'url': 'https://en.bitcoin.it/wiki/Main_Page',
+			'visits':
+				[r'has\sbeen\saccessed\s',
+				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
+		'consultancy': {
+			'url': 'https://bitcoinconsultancy.com/wiki/Main_Page',
+			'visits':
+				[r'has\sbeen\saccessed\s',
+				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
+		'mtgox':    {
+			'url': 'https://mtgox.com',
+			'average':
+			[r'Weighted Avg:<span>',
+			 r'\$[0-9]{1,2}[.][0-9]{3,6}' ],  
+			'last':
+			[r'Last price:<span>',
+			 r'\$[0-9]{1,2}[.][0-9]{3,6}' ],
+			'high':
+			[r'High:<span>',
+			 r'\$[0-9]{1,2}[.][0-9]{3,6}' ],
+			'low':
+			[r'Low:<span>',
+			 r'\$[0-9]{1,2}[.][0-9]{3,6}' ],
+			'volume':
+			[r'Volume:<span>',
+			 r'\$[0-9]{1,9}' ] },
 		}
 	from argparse import ArgumentParser
 	p = ArgumentParser(description=__doc__.strip())
@@ -213,6 +264,31 @@ def union(p,q):
 		if e not in p:
 			p.append(e)
 
+def wikipedia_view_rates(articles=['Bitcoin','James_Surowiecki'],verbose=False,names=''):
+	# TODO: make this a 2-D array with the article title and various view rate stats for each element in articles
+	dat = dict()
+	if not names:
+		name = 'wikipedia_view_rate'
+	elif isinstance(names,str):
+		name=names
+	elif isinstance(names,list) and len(names)==len(articles):
+		for i,article in enumerate(articles):
+			dat[name[i]] = wikipedia_view_rate(article=article,verbose=verbose)
+		return dat
+
+	for article in articles:
+		#if verbose:
+		print 'Checking wikipedia view rate for "'+article+'"'
+		dat[name+'_'+article] = wikipedia_view_rate(article=article,verbose=verbose)
+	return dat
+
+def wikipedia_view_rate(article='Bitcoin',verbose=False):
+	return mine_data(url='http://stats.grok.se/en/latest/'+article,
+		             prefixes=r'[Hh]as\sbeen\sviewed\s',
+		             regexes=r'[0-9]{1,10}',
+		             names='view_rate_'+article,
+		             verbose=verbose) 
+
 def get_all_links(page):
 	links = []
 	while True:
@@ -227,7 +303,7 @@ def get_all_links(page):
 # TODO: set default url if not url
 # TODO: tries to browse to weird URLs and bookmarks, e.g. "href=#Printing"
 # TODO: need to count stats like how many are local and how many unique second and top level domain names there are
-def get_links(url='https://en.bitcoin.it/wiki/Trade',max_depth=1,max_breadth=1e6,max_links=1e6,verbose=False):
+def get_links(url='https://en.bitcoin.it/wiki/Trade',max_depth=1,max_breadth=1e6,max_links=1e6,verbose=False,name=''):
 	import datetime
 	from tg.tz import Local
 	tocrawl = [url]
@@ -239,6 +315,8 @@ def get_links(url='https://en.bitcoin.it/wiki/Trade',max_depth=1,max_breadth=1e6
 	links = 0
 	if verbose:
 		print 'Counting links by crawling URL "'+url+'" to a depth of '+str(max_depth)+'...'
+	if not name:
+		name = 'data'
 	while depth<=max_depth and links<max_links:
 		links += 1
 		if page not in crawled:
@@ -254,7 +332,7 @@ def get_links(url='https://en.bitcoin.it/wiki/Trade',max_depth=1,max_breadth=1e6
 		page  = tocrawl.pop(0) # FIFO to insure breadth first search
 		depth = depthtocrawl.pop(0) # FIFO
 	dt = datetime.datetime.now(tz=Local)
-	return {url:{'datetime':str(dt),'links':len(crawled),'depth':max_depth}}
+	return {name:{'datetime':str(dt),'url':url,'links':len(crawled),'depth':max_depth}}
 
 # TODO: set default url if not url
 def rest_json(url='https://api.bitfloor.com/book/L2/1',verbose=False):
@@ -268,74 +346,117 @@ def rest_json(url='https://api.bitfloor.com/book/L2/1',verbose=False):
 		print 'Retrieved a '+str(len(data_str))+'-character JSON string at '+ str(dt)
 	dat     = json.loads( data_str )
 	dat['datetime']=str(dt)
-	return {url:dat}
+	dat['url']=url
+	return {'bitfloor_book':dat}
 
 # TODO: set default url if not url
 def bitfloor_book(url='https://api.bitfloor.com/book/L2/1',bids=None,asks=None,verbose=False):
 	return rest_json(url=url,verbose=verbose) 
 
+def extract(s='', prefix=r'', regex=r'', suffix=r''):
+	# TODO: extract or create a variable name along with extracting the actual numerical value, see tg.nlp
+	# TODO: extract or create a unit of measure string along with extracting the actual numerical value, see tg.nlp
+	import re
+	r = re.compile(r'(?:'+prefix+r')\s*'+r'(?P<quantity>'+regex+r')') # inefficient to compile the regex
+	mo = r.search(s)
+	if mo:
+		return (mo.group(mo.lastindex))
+	return None
+
 # TODO: set default url if not url
-def mine_data(url='',prefixes=r'',regexes=r'',verbose=False):
+def mine_data(url='', prefixes=r'', regexes=r'', suffixes=r'', names='', verbose=False):
 	import datetime
 	from tg.tz import Local
 	if verbose:
 		print 'Mining URL "'+url+'" ...'
 	if not url: 
 	    return None
-	page=Bot().GET(u)
+	page=Bot().GET(url)
 	dt = datetime.datetime.now(tz=Local)
-	dat = {'datetime':str(dt)}
+	dat = {'datetime':str(dt),'url':url}
+	if names and isinstance(names,str):
+		name = names
+	elif isinstance(names,(list,tuple)) and len(names)==1:
+		name = names[0]
+	else:
+		name = 'data'
 	if verbose:
 		print 'Retrieved '+str(len(page))+' characters/bytes at '+ str(dt)
-	if isinstance(prefixes,list):
+	if (  prefixes and regexes and names and isinstance(prefixes,list) and
+		  isinstance(regexes,list) and isinstance(names,list) and 
+		  len(regexes)==len(prefixes)==len(names) ):
+		for i,prefix in enumerate(prefixes):
+			q=extract(s=page,prefix=prefix,regex=regexes[i])
+			if q:
+				dat[names[i]]=q
+	elif (prefixes and regexes and isinstance(prefixes,list) and 
+		  isinstance(regexes,list) and len(regexes)==len(prefixes) ):
+		for i,prefix in enumerate(prefixes):
+			q=extract(s=page,prefix=prefix,regex=regexes[i])
+			if q:
+				dat[name+str(i)]=q
+	elif isinstance(prefixes,list) and isinstance(prefixes[0],list) and len(prefixes[0])==2:
 		for i,[prefix,regex] in enumerate(prefixes):
-			r = re.compile(r'(?:'+prefix+r')\s*'+r'(?P<quantity>'+regex+r')') # lookbehind group NOT required: r'(?<=...)'
-			mo = r.search(page)
-			if mo:
-				q = mo.group(mo.lastindex)
-				dat[i]=q
+			q=extract(s=page,prefix=prefix,regex=regex)
+			if q:
+				dat[name+str(i)]=q
+	elif isinstance(prefixes,list) and isinstance(prefixes[0],list) and len(prefixes[0])==3:
+		for i,[prefix,regex,name] in enumerate(prefixes):
+			q=extract(s=page,prefix=prefix,regex=regex)
+			if q:
+				dat[name]=q
+# this condition taken care of by earlier setting name=names
+#	elif prefixes and regexes and names and isinstance(prefixes,str) and
+#			isinstance(regexes,str) and isinstance(names,str):
+#		dat[names]=extract(s=page,prefix=prefixes,regex=regexes)
+	elif prefixes and regexes and isinstance(prefixes,str) and isinstance(regexes,str):
+		dat[name]=extract(s=page,prefix=prefixes,regex=regexes)
 	elif isinstance(prefixes,dict):
 		for name,[prefix,regex] in prefixes.items():
-			r = re.compile(r'(?:'+prefix+r')\s*'+r'(?P<quantity>'+regex+r')') # lookbehind group NOT required: r'(?<=...)'
-			mo = r.search(page)
-			if mo:
-				q = mo.group(mo.lastindex)
+			q=extract(s=page,prefix=prefix,regex=regex)
+			if q:
 				dat[name]=q
 	return dat
 
+def are_all_urls(urls):
+	if isinstance(urls,dict):
+		return all([ k[0:min(4,len(k))]=='http' for k in urls.keys()])
+	elif isinstance(urls,(list,tuple)) and isinstance(urls[0],str): 
+		return all([ k[0:min(4,len(k))]=='http' for k in urls])
+	return False
+
 if __name__ == "__main__":
-	import re
 	o = parse_args()
-	#bitcoin_url = "https://en.bitcoin.it/wiki/Trade"
-	#bifloor_url = 'https://api.bitfloor.com/book/L2/1'
-
-#	data = rest_json()
-#	print type(data)
-#	print data
-
-#	example bot usage
-#	signin_results   = bot.POST('https://example.com/authenticator', {'passwd':'foo'})
-#	singoff_results  = bot.POST('https://example.com/deauthenticator',{})
-
+	
+	# mine raw urls
 	dat = dict()
 	if type(o.urls)==dict:
-		for u,r in o.urls.items():
-			dat[u]=mine_data(u,r,verbose=not o.quiet)
-#	elif type(o.urls)==list and len(o.urls)==len(o.prefix)==len(o.regex):
-#		for i,u in enumerate(o.urls):
-#			mine_data(u,o.prefix[i],o.regex[i],verbose=not o.quiet)
-#	elif type(o.urls)==type(o.prefix)==type(o.regex)==str and len(o.urls)>1 and len(o.regex)>0 and len(o.prefix)>0:
-#		mine_data(o.urls,o.prefix,o.regex,verbose=not o.quiet)
+		if are_all_urls(o.urls):
+			for u,r in o.urls.items():
+				dat[u]=mine_data(url=u, prefixes=r, verbose=not o.quiet)
+		else:
+			for name,r in o.urls.items():
+				dat[name]=mine_data(url=r.pop('url'), prefixes=r, verbose=not o.quiet)
 	else:
 		raise ValueError('Invalid URL, prefix, or regex argument.')
 	
 	if o.verbose:
 		import pprint
 		pprint.pprint(dat)
+	
+	# get bitfloor book data
 	bfdat = bitfloor_book(verbose=not o.quiet)
 	if o.verbose:
 		pprint.pprint(bfdat)
+
+	# get wikipedia page visit rates
+	wikidat = wikipedia_view_rates(verbose=not o.quiet)
+	if o.verbose:
+		pprint.pprint(wikidat)
+
+	# count links at bitcoin.it/Trade (need a better way of counting the businesses that accept bitcoin)
 	links = get_links(max_depth=0,verbose=not o.quiet)
+	
 	with open(o.path,'r+') as f: # 'a+' and 'w+' don't work
 		# pointer should be at the end already due to append mode, but it's not,
 		f.seek(0,2)  # go to position 0 relative to 2=EOF (1=current, 0=begin)
@@ -352,8 +473,11 @@ if __name__ == "__main__":
 		f.write(",\n") # delimit records/object-instances within an array with commas
 		f.write(json.dumps(bfdat,indent=2))
 		f.write(",\n") # delimit records/object-instances within an array with commas
+		f.write(json.dumps(wikidat,indent=2))
+		f.write(",\n") # delimit records/object-instances within an array with commas
 		f.write(json.dumps(links,indent=2))
 		f.write("\n]\n") #  terminate array brackets and add an empty line
-		if o.verbose:
+		if not o.quiet:
 			print 'Appended json records to "'+o.path+'"'
+			print 'MtGox price is '+str(dat['mtgox']['average'])
 
