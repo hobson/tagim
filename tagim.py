@@ -17,6 +17,8 @@ TODO:
 	Make sure catalog is being updated to include more recent photos.
 	Use file system monitoring system (see recoll user manual) to trigger database updates
 	Use a databasing system to keep track of which files have been shown and to index the tags and comments for searching.
+	Allow user to set persistent settings like a "public" or "interest" threshold or formula for upload to a blog.
+	Automatically modify the filename of numbered photos to include important tags like location and people names and date and rare words
 """
 
 # eliminates insidious integer division errors, otherwise '(1.0 + 2/3)' gives 1.0 (in python <3.0)

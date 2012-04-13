@@ -27,12 +27,12 @@
 	Retrieved 225 links at "https://en.bitcoin.it/wiki/Trade"
 	Appended json records to "/home/hobs/Notes/notes_repo/bitcoin trend data.json"
 	MtGox price is $4.79240
-
 	
 	Dependencies:
 		argparse -- ArgumentParser
 		urllib
 		urllib2
+		tz -- a local module
 
 	TODO:
 	1. deal with csv: http://www.google.com/trends/?q=bitcoin&ctab=0&geo=us&date=ytd&sort=0 , 
@@ -44,18 +44,22 @@
 	4. generalize the search with AI and ML to identify good and bad trends for all common proper names--stock symbols, etc
 	   a) write research paper to prove it does as good a job as a human stock analyst at predicting future price movements
 	   b) write a browser plugin that allows a human to supervise the machine learning and identify useful/relevant quantitative data
+	5. implement the indexer and search engine for the double-star question 3 in CS101 and get quant data directly from the index
+	6. implement the levetshire distance algorithm from the CS101 exam for use in word-stemming and search term similarity estimate
 
-	Copyright:
-	((c) Hobson Lane dba TotalGood)
-
+	Author: Hobson Lane dba TotalGood
+	License: GPL v3
+	Attribution: Based on code at udacity.com licensed to CC BY-NC-SA
 """
 
-FILENAME='/home/hobs/Notes/notes_repo/bitcoin trend data.json'
+FILENAME='bitpart_historical_data.json'
 
 def parse_args():
 	# TODO: "meta-ize" this by only requiring number format specification in some common format 
 	#       like sprintf or the string input functions of C or python, and then convert to a good regex
-	# TODO: add optional units and suffix patterns
+	# TODO: add optional units-of-measure and suffix patterns
+	# TODO: come up with some generalized format that allows you to count links or other stats on a page rather than just extracting a literal value
+
 	URLs={'network': 
 			{ 
 			  'url': 'http://bitcoincharts.com/about/markets-api/',
@@ -305,7 +309,7 @@ def get_all_links(page):
 # TODO: need to count stats like how many are local and how many unique second and top level domain names there are
 def get_links(url='https://en.bitcoin.it/wiki/Trade',max_depth=1,max_breadth=1e6,max_links=1e6,verbose=False,name=''):
 	import datetime
-	from tg.tz import Local
+	from tz import Local
 	tocrawl = [url]
 	crawled = []
 	depthtocrawl = [0]*len(tocrawl)
@@ -337,7 +341,7 @@ def get_links(url='https://en.bitcoin.it/wiki/Trade',max_depth=1,max_breadth=1e6
 # TODO: set default url if not url
 def rest_json(url='https://api.bitfloor.com/book/L2/1',verbose=False):
 	import json, datetime
-	from tg.tz import Local
+	from tz import Local
 	if verbose:
 		print 'Getting REST data from URL "'+url+'" ...'
 	data_str = Bot().GET(url)
@@ -366,7 +370,7 @@ def extract(s='', prefix=r'', regex=r'', suffix=r''):
 # TODO: set default url if not url
 def mine_data(url='', prefixes=r'', regexes=r'', suffixes=r'', names='', verbose=False):
 	import datetime
-	from tg.tz import Local
+	from tz import Local
 	if verbose:
 		print 'Mining URL "'+url+'" ...'
 	if not url: 
@@ -457,6 +461,14 @@ if __name__ == "__main__":
 	# count links at bitcoin.it/Trade (need a better way of counting the businesses that accept bitcoin)
 	links = get_links(max_depth=0,verbose=not o.quiet)
 	
+	try:
+		f = open(o.path,'r+')
+		f.close()
+	except:
+		f = open(o.path,'w')
+		f.write('[\n')  # start a new json array/list
+		f.write("\n]\n") #  terminate array brackets and add an empty line
+		f.close()
 	with open(o.path,'r+') as f: # 'a+' and 'w+' don't work
 		# pointer should be at the end already due to append mode, but it's not,
 		f.seek(0,2)  # go to position 0 relative to 2=EOF (1=current, 0=begin)
@@ -467,7 +479,8 @@ if __name__ == "__main__":
 			#f.seek(-3,2)
 			f.write(",\n") # to allow continuation of the json array/list
 		else:
-			f.write('[\n')  # start a new json array/list
+			f.seek(0,0) # beginning of file
+			f.write('[ \n')  # start a new json array/list
 		import json
 		f.write(json.dumps(dat,indent=2))
 		f.write(",\n") # delimit records/object-instances within an array with commas
