@@ -22,6 +22,7 @@
 
 import recoll
 from argparse import ArgumentParser
+from os import system
 
 p = ArgumentParser(description=__doc__.strip())
 p.add_argument(
@@ -67,6 +68,10 @@ p.add_argument(
 	action='store_true',
 	help='Sort the results in ascending alphabetical order by their titles.')
 p.add_argument(
+	'-e','--edit','--gedit',
+	action='store_true',
+	help='Edit the first matching file.')
+p.add_argument(
 	'-d','--descending',
 	action='store_true',
 	help='Sort the results in descending alphabetical order by their filenames.')
@@ -100,4 +105,6 @@ for i in range(min(N,o.num)):
 		print "'"+s.url[7:]+"'"
 	if o.verbose:
 		print '({0}) {1} MB {2}'.format(s.relevancyrating,float(s.dbytes)/1000000.0,str(s.mtime)) #,s.author)
+	if o.edit:
+		pass
 

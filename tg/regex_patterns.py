@@ -179,13 +179,18 @@ DATE_PATTERN = re.compile(r"""
 		(?P<d>%(DAY)s)
 """ % QUANT_PATTERNS, re.X)
 
+# FIXME: parse the AM/PM bit
 TIME_PATTERN = re.compile(r"""
 		(?P<h>%(HOUR)s)%(TIME_SEP)s
 		(?P<m>%(MINUTE)s)%(TIME_SEP)s
 		(?P<s>%(SECOND)s) 
 """ % QUANT_PATTERNS, re.X)
 
-DATETIME_PATTERN = re.compile(r'(?P<date>'+DATE_PATTERN.pattern+r')(?:%(DATE_SEP)s)?(?P<time>'+TIME_PATTERN.pattern+r')' % QUANT_PATTERNS, re.X)
+DATETIME_PATTERN = re.compile(r'(?P<date>'+DATE_PATTERN.pattern+
+                              r')(?:'+QUANT_PATTERNS['DATE_SEP']+
+                              r')?(?P<time>'+TIME_PATTERN.pattern+r')', re.X)
+                              
+#DATETIME_PATTERN = re.compile(r'(?P<date>'+DATE_PATTERN.pattern+r')(?:%(DATE_SEP)s)?(?P<time>'+TIME_PATTERN.pattern+r')' % QUANT_PATTERNS, re.X)
 
 DATE_OR_TIME_PATTERN = re.compile(r"""
 	(?P<date>"""
