@@ -71,7 +71,7 @@ def start(filepath):
     import os,subprocess
     if os.name == 'nt':
         startfile(filepath)
-    elif name in ['mac','posix']:
+    elif name in ['posix']: # 'mac' doesn't work here because too old a variant of mac OS
         try:
             #retcode = subprocess.call(('xdg-open if os.name==)+"open" + filename, shell=True)
             retcode = subprocess.call(('xdg-open', filepath))
@@ -181,7 +181,38 @@ def launch(path, operation='open', gui=True, fallback=True):
                 raise
 
 
+# from http://docs.python.org/faq/library#how-do-i-get-a-single-keypress-at-a-time
+def wait_for_key(verbose=False):
+    import termios, fcntl, sys, os
+    if os.name == 'posix': 
+        fd = sys.stdin.fileno()
 
+        oldterm = termios.tcgetattr(fd)
+        newattr = termios.tcgetattr(fd)
+        newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+        termios.tcsetattr(fd, termios.TCSANOW, newattr)
+
+        oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+
+        try:
+            while 1:
+                try:
+                    c = sys.stdin.read(1)
+                    if verbose:
+                        print "Received character "+repr(c)+" from stdin."
+                    return c # TODO: this doesn't bypass the finally section does it?
+                except IOError: pass
+        finally:
+            termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
+            fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+    elif sys.platform.startswith('darwin'):
+        # TODO: implement
+        raise NotImplementedError("No keyboard input function is implemented for older Mac OS versions.")
+    else:
+        # TODO: implement
+        raise NotImplementedError("No keyboard input function is implemented for your OS.")
+    
 # TODO: reuse this script in "/home/hobs/bin/securehist" to search widely for passwords to delete
 # TODO: use the os.path functions to parse the filename and compare the extension 
 #      (so that an empty extension can be matched, as in the examples)
@@ -193,7 +224,7 @@ def launch(path, operation='open', gui=True, fallback=True):
 #	replace_in_files(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
 #else:
 #	replace_in_files(sys.argv[1], sys.argv[2], sys.argv[3])
-def replace_in_files(search_pattern, relacement_pattern, dir_name='./', extensions=None):
+def replace_in_files(search_pattern, replacement_pattern, dir_name='./', extensions=None, verbose=True, dryrun=True, interactive=False):
     """Replace all occurrences of a search pattern in all files in a directory tree
 
     BASED ON:
@@ -207,10 +238,15 @@ def replace_in_files(search_pattern, relacement_pattern, dir_name='./', extensio
             if extensions and not fname.lower().endswith(replace_extensions):
                 continue
             fullname = os.path.join(dirpath, fname)
+            if verbose or interactive:
+                print 'Replacing pattern '+repr(repat)+' in '+repr(fullname)+' with '+repr(replacement_pattern)+'.'
+            if interactive:
+                print 'Hit Y to procede, <CTRL-C> to cancel, any other key to skip this file.'
             replace_in_file(fullname, repat, replacement_pattern)
 
 def containing_folder(filepath=os.getcwd()):
     return os.path.split(os.path.dirname(filepath).strip(os.sep))[-1]
+
 
     
 class Env:
@@ -277,12 +313,10 @@ def find_nearby_file(filename=None, defaultname=DEFAULT_TMP_FILENAME, alternate_
     if not os.path.isfile(filepath):
         filepath= os.path.join(env.home,defaultname)
     if os.path.isfile(filepath):
-        with open(filepath,'+w') as fp:
-        with 
-        with open(filepath,'w') as fp:
+        with open(filepath,'a+') as fp: # open for reading and writing with pointer at end
             s = fp.write('')
             return filepath
-        print 'Unable to create a file at ',repr(filepath)
+        print 'Unable to create or append the file at ',repr(filepath)
 
 def android_path():
     # any android devices mounted in "usb storage" mode and return a list of paths to their sdcard root

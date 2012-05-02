@@ -246,7 +246,7 @@ if isinstance(sequencenum,int) and not os.path.isfile(o.image_filename):
     print repr(o.image_filename)
 
 if not os.path.isfile(o.image_filename):
-    raise IOError.FileNotFound("Error: Couldn't find the image file at '{0}'".format(o.image_filename))
+    raise IOError("Error: Couldn't find the image file at '{0}'".format(o.image_filename))
 
 if o.verbose:
   print "Image file name: '{0}'".format(o.image_filename)

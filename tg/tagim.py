@@ -567,7 +567,7 @@ def shuffle_background_photo(image=''):
                   __file__,__name__,image)
         print >> dbg_log_file, msg
         print >> dbg_log_file, image
-        print >> db_log_file, image
+        db_log_file.write(str(image)+'\n')
         dbg_log_file.close()
         db_log_file.close()
         return image
@@ -586,8 +586,8 @@ def shuffle_background_photo(image=''):
     print >> dbg_log_file, "  Finished copying over the desktop background image file with the image at:"
     #+os.linesep
     print >> dbg_log_file, RANDPHOTOPATH
-    print >> db_log_file, RANDPHOTOPATH
     dbg_log_file.close()
+    db_log_file.write(str(RANDPHOTOPATH)+'\n')
     db_log_file.close()
     return RANDPHOTOPATH
 
