@@ -40,15 +40,19 @@ def parse_args():
                  help='Path to folder or file to do the replacement in.',
                 )
     p.add_option('-i','--interactive',
-                 default=True,
+                 action = 'store_true',
                  help='Whether to interractively prompt for confirmation of every file replacement.',
                 )
+    p.add_option('-d','--dryrun','--dry-run',
+                 action = 'store_true',
+                 help='Do not alter any file content.',
+                )
     p.add_option('-n','--non-interactive','--force',
-                 default=False,
+                 action = 'store_true',
                  help='Whether to force replacement without promptin the user.',
                 )
     p.add_option('-b','--bin','--binary',
-                 default=False,
+                 action = 'store_true',
                  help='Replace string in binary files in addition to text files (ascii, unicode, etc).',
                 )
     p.add_option('-x','-e','--ext','--extension','--extensions',
@@ -101,7 +105,7 @@ if __name__ == "__main__":
     if ( 
             not isinstance(o.fromtxt,str) or not len(o.fromtxt)>=1
          or not isinstance(o.to,str)      or not len(o.to)     >=0
-         or not isinstance(o.path,str)    or not len(o.pth)    >=1
+         or not isinstance(o.path,str)    or not len(o.path)    >=1
        ):
         raise ValueError('Need to supply a from and to string to do a replacement')
     import tg.utils as ut
@@ -110,7 +114,8 @@ if __name__ == "__main__":
                         dir_name            = o.path, 
                         extensions          = o.ext, 
                         interactive         = (o.interactive and not o.non_interactive), 
-                        verbose             = o.verbose
+                        verbose             = o.verbose,
+                        dry_run              = o.dryrun,
                        )
     import sys
     sys.exit(0)

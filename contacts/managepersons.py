@@ -87,7 +87,7 @@ class managepersons(wx.Dialog):
     def add(self, event):
         aperson = addperson(self, -1, "Add New Person",
                                  False, 0)
-    val=aperson.ShowModal()
+        val=aperson.ShowModal()
         if val:
             self.refresh()
             
