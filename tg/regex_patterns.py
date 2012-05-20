@@ -27,7 +27,10 @@ from __future__ import division
 
 version = '0.7'
 import re
-import geopy
+try:
+    import geopy
+except ImportError:
+    geopy = False
 import os.path
 
 # Unicode characters for symbols that appear in coordinate strings.
@@ -78,16 +81,21 @@ UTIL_PATTERNS = dict(
 	INT             = r'[+-]?\d+(?:\s?[eE]\s?[+]?\d+)?', 
 	INT_NONEG       =  r'[+]?\d+(?:\s?[eE]\s?[+]?\d+)?', 
 	INT_NOSIGN      =      r'\d+(?:\s?[eE]\s?[+]?\d+)?', # HL: exponents should always be allowed a sign
-	DEGREE          = geopy.format.DEGREE, 
-	PRIME           = geopy.format.PRIME, 
-	DOUBLE_PRIME    = geopy.format.DOUBLE_PRIME, 
 	SEP             = r'\s*[,;\s]\s*', 
-	DEGREE_SYM      =       r'['+geopy.format.DEGREE      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
-	ARCMIN_SYM      = r'(?:arc|Arc|ARC)?['+geopy.format.PRIME       +r"'Mm][Ii]?[Nn]?", 
-	ARCSEC_SYM      = r'(?:arc|Arc|ARC)?\-?['+geopy.format.DOUBLE_PRIME+r'"Ss?', 
 	EOL             = r'(?:\r\n|\n|\r)',
 	QUOTE           = r"""(?P<quote>(?P<quoter>['"])(?P<quoted>.*?)(?P=quoter))""", # named parameters could through regexes that use \1 off
 	)
+if geopy:
+	UTIL_PATTERNS['DEGREE']          = geopy.format.DEGREE
+	UTIL_PATTERNS['PRIME']           = geopy.format.PRIME
+	UTIL_PATTERNS['DOUBLE_PRIME']    = geopy.format.DOUBLE_PRIME
+else:
+	UTIL_PATTERNS['DEGREE'      ]    = u'\xb0'   #chr(167) # ASCII or unicode? which can be used in RE patterns?
+	UTIL_PATTERNS['PRIME'       ]    = u'\u2032'
+	UTIL_PATTERNS['DOUBLE_PRIME']    = u'\u2033'
+UTIL_PATTERNS['DEGREE_SYM'] = r'['                   +UTIL_PATTERNS['DEGREE']      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
+UTIL_PATTERNS['ARCMIN_SYM'] = r'(?:arc|Arc|ARC)?['   +UTIL_PATTERNS['PRIME']       +r"'Mm][Ii]?[Nn]?", 
+UTIL_PATTERNS['ARCSEC_SYM'] = r'(?:arc|Arc|ARC)?\-?['+UTIL_PATTERNS['DOUBLE_PRIME']+r'"Ss?', 
 
 # TODO: Implement patterns for paths
 #   1. identify quoted and unquoted path names, with or without backslash-escaped spaces
@@ -130,14 +138,6 @@ QUANT_PATTERNS = dict(
 	INT_NOSIGN_2DIGIT    = r'\d\d',
 	INT_NOSIGN_4DIGIT    = r'\d\d\d\d',
 	INT_NOSIGN_2OR4DIGIT = r'(?:\d\d){1,2}',
-	DEGREE_SYM           = geopy.format.DEGREE,
-	PRIME_SYM            = geopy.format.PRIME,
-	DOUBLE_PRIME_SYM     = geopy.format.DOUBLE_PRIME,
-#	                                 # HL: whitespace equivalent to deg sym as units indicator
-	DEGREE               =       r'(?:[ ]?['  +geopy.format.DEGREE       +r'd]|[ ]?deg|[ ]?dg|[ ])',
-	# assumes minutes rather than seconds if 'arc' or no other units are given
-	ARCMIN               = r'(?i)(?:arc)?['   +geopy.format.PRIME        +r"'m](?:(?:in|n|inute)[s]?)?", 
-	ARCSEC               = r'(?i)(?:arc)?\-?['+geopy.format.DOUBLE_PRIME +r'"s](?:(?:ec|c|econd)[s]?)?',
 	YEAR                 = r'(?i)(?:1[0-9]|2[012]|[1-9])?\d?\d(?:\s?AD|BC)?',  # 2299 BC - 2299 AD, no sign
 	MONTH                = r'[01]\d',   # 01-12
 	DAY         = r'[0-2]\d|3[01]',     # 01-31
@@ -148,6 +148,18 @@ QUANT_PATTERNS = dict(
 	MINUTE      = r'[0-5]\d',           # 00-59
 	SECOND      = r'[0-5]\d(?:\.\d+)?', # 00-59
 	)
+if geopy:
+	QUANT_PATTERNS['DEGREE']          = geopy.format.DEGREE
+	QUANT_PATTERNS['PRIME']           = geopy.format.PRIME
+	QUANT_PATTERNS['DOUBLE_PRIME']    = geopy.format.DOUBLE_PRIME
+else:
+	QUANT_PATTERNS['DEGREE'      ]    = u'\xb0'   #chr(167) # ASCII or unicode? which can be used in RE patterns?
+	QUANT_PATTERNS['PRIME'       ]    = u'\u2032'
+	QUANT_PATTERNS['DOUBLE_PRIME']    = u'\u2033'
+QUANT_PATTERNS['DEGREE_SYM'] = r'['                   +QUANT_PATTERNS['DEGREE']      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
+QUANT_PATTERNS['ARCMIN'] = r'(?:arc|Arc|ARC)?['   +QUANT_PATTERNS['PRIME']       +r"'Mm][Ii]?[Nn]?", 
+QUANT_PATTERNS['ARCSEC'] = r'(?:arc|Arc|ARC)?\-?['+QUANT_PATTERNS['DOUBLE_PRIME']+r'"Ss?', 
+
 
 #WARN: each of the lat/lon/alt elements needs to stop and not worry about armin/arcsec as soon as they get a decimal point, especially if no arcmin or arcsec units are given
 #TODO: to avoid ambiguity just require arcmin/arcsec units indicators rather than allowing a sequence of floats to be interpreted as d,m,s

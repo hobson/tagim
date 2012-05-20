@@ -14,6 +14,7 @@ import os
 import re
 import sys
 from warnings import warn
+import collections # .Iterable
 
 # TODO: don't read the whole file into memory and write.
 # TODO: DRY-up using replace_in_file
@@ -519,7 +520,7 @@ def sign(f):
 def make_same_type_as(obj1,obj2):
   return type(obj2)(obj1)
 
-import collections
+
 # accepted answer http://stackoverflow.com/questions/2158395/flatten-an-irregular-list-of-lists-in-python/2158532#215853
 def flatten(list_o_lists):
     """Flatten all dimensions of a multi-dimensional iterable (list/array, tuple, dict, etc) to 1-D, except for member strings.
@@ -537,11 +538,137 @@ def flatten(list_o_lists):
                 yield subel
         else:
             yield el
+            
+def flattrans(list_o_lists):
+    """Flatten by 1 dimension and transpose 1st 2 dimensions of a multi-dimensional iterable (list/array, tuple, dict, etc) to N-1-D, where N is the dimension of the list_o_lists.
+
+    >>> l1 = list(flatten(UNIT_CONVERSIONS))
+    >>> [(s in l1) for s in ('inches','m','furlongs','stone')]
+    [True, True, False, False]
+    """
+    if isinstance(list_o_lists, collections.Iterable) and not isinstance(list_o_lists, basestring):
+        if isinstance(list_o_lists[0], collections.Iterable) and not isinstance(list_o_lists[0], basestring):
+            for j in range(len(list_o_lists[0])):
+                for i in range(len(list_o_lists)):
+                    yield list_o_lists[i][j]
+        else:
+            for i in range(len(list_o_lists)):
+                 yield list_o_lists[i]
+    else:
+        yield list_o_lists
 
 # more complicated "flatten", but effective answer (doesn't seem like it would work for other iterables like dict and set, but seems to
 # http://stackoverflow.com/questions/2158395/flatten-an-irregular-list-of-lists-in-python/2158532#215853
 flatten_lists = lambda *n: (e for a in n
-    for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
+    for e in (flatten_lists(*a) if isinstance(a, (tuple, list)) else (a,)))
+
+# FIXME: NOT_IMPLEMENTED
+def deep_flatten(list_o_lists):
+    f = [x for x in flatten(list_o_lists)]
+
+def size(lol,d=None):
+    """List lengths of first elements for each dimension of a multi-D Iterable
+    
+    Second optional argument, `d`, is a list of dimensions that is appended and returned.
+    Should be a hidden, system parameter, not a user argument. It's just used to make this function
+    work recursively on deep multi-dimensional collections.Iterables
+    
+    TODO: calculate the maximum lengths for jagged lists of lists rather than the
+          length of the first element
+    
+    >>> size([range(3),range(4)]):
+    (2, 4)
+    >>> size(range(3)):
+    (3)
+    >>> size(100):
+    0
+    >>> size([[range(4),range(5),range(6)],range(2),range(7)])
+    (3, 7, 6)
+    >>> u.size([[[range(2)]*3]*4]*6)
+    (6, 4, 3, 2)
+    """
+    
+    # initialize the result if this is the first time this recursive function has been called
+    if not d:                d=list()
+    if isinstance(d,tuple):  d=list(d)
+
+    if lol and isinstance(lol, collections.Iterable) and not isinstance(lol, basestring):
+        d.append(len(lol))
+        if lol[0] and isinstance(lol[0],collections.Iterable) and not isinstance(lol[0], basestring):
+             # need some flag to indicate when all elements have been sized,
+             #  creating a list of list of sizes that is 1 less dimension than the actual
+             #  dimension of the multi-D list of values, then walk it, finding the maxes
+             # for each dimension
+            d.extend(size(lol[0],None))
+    return tuple(d)
+
+def size2(x, errors=True, verbose=True):
+    """Return a tuple of 2 dimensions regardless of the size of the lists in x.
+    
+    >>> size2([[1,2,3],[4,5]])
+    (2, 3)
+    >>> size2([[[[0,1],[2,3]],[4,5]],[6,7,8,9]], verbose=False, errors=True)
+    (2, 4)
+    >>> size2([[[[0,1],[2,3]],[4,5]],[6,7,8,9]], verbose=True, errors=True)
+    bitcrawl.py:...: UserWarning: Nested iterable contained more than 2 dimensions but only 2 requested. Size: (2, 4, 2)
+      warn("Nested iterable contained more than 2 dimensions but only 2 requested. Size: "+str(NM))
+    (2, 4)
+    >>> size2([1,2,3], verbose=False, errors=False)
+    (3, 0)
+    >>> size2([1,2,3], verbose=False, errors=True)
+    Traceback (most recent call last):
+        ...
+    ValueError: Nested iterable contained less than 2 dimensions. Size: 3
+    """
+    NM = size(x)
+    print 'size(NM)',NM
+    D = 1
+    try:
+        D = len(NM)
+        print 'D',D
+    except TypeError:
+        pass
+    if D==2:
+        return NM[0], NM[1]
+    if D>2:
+        if verbose:
+            warn("Nested iterable contained more than 2 dimensions but only 2 requested. Size: "+str(NM))
+        return NM[0], NM[1]
+    if D<2:
+        if errors:
+            raise ValueError("Nested iterable contained less than 2 dimensions. Size: "+str(NM))
+        elif verbose:
+            warn("Nested iterable contained less than 2 dimensions and 2 requested. Size: "+str(NM))
+    if D==1:
+        return NM, 0
+    return 0, 0
+
+def size3(x, errors=True, verbose=True):
+    """Return a tuple of 3 dimensions regardless of the size of the lists in x.
+    """
+    NM = size(x)
+    D = 1
+    try:
+        D = len(NM)
+    except TypeError:
+        pass
+    if D==3:
+        return NM[0], NM[1], NM[2]
+    elif D>3:
+        if verbose:
+            warn("Nested iterable contained more than 3 dimensions but only 3 requested. Size: "+str(NM))
+        return NM[0], NM[1], NM[2]
+    elif D<3:
+        if errors:
+            raise ValueError("Nested iterable contained less than 3 dimensions. Size: "+str(NM))
+        elif verbose:
+            warn("Nested iterable contained less than 3 dimensions and 3 requested. Size: "+str(NM))
+    if D==2:
+        return NM[0], NM[1], 0
+    elif D==1:
+        return NM, 0, 0
+    return 0, 0, 0
+
 
 ## Django project settings loader
 #import os
@@ -722,19 +849,6 @@ def merge_iter( new, old, allcaps=True, doubleunderscore=False, verbose=2, overw
     # FIXME: mismatched schemas (new and old elements not the same type and structure) may result in no change
     #print 'returning value '+repr(old)
     return old
- 
 
-## TODO: there should be a clever way to do this with a recursive function and a static variable to hold the accumulated list of dimensions
-#def __size__(x): 
-#  l = nlp.has_len(x)
-#  TG_NLP_SIZE_DIMENSION_LIST[-1]=max(TG_NLP_SIZE_DIMENSION_LIST[-1],l)
-#  
-#  for x0 in x:
-#    l=max(nlp.has_len(x),l)
-#  
-#def size(x):
-#  """Calculate the shape (size) of a multi-dimensional list"""
-#  HL_SIZE_DIMENSION_LIST = [0] # reset the dimension list
-#  return __size__(x)
 
 
