@@ -34,7 +34,7 @@ except ImportError:
 import os.path
 
 # Unicode characters for symbols that appear in coordinate strings.
-DEGREE = unichr(176)
+DEGREE = unichr(176) # ascii 167 = unicode 176 ?
 PRIME = unichr(8242)
 DOUBLE_PRIME = unichr(8243)
 ASCII_DEGREE = ''
@@ -86,16 +86,16 @@ UTIL_PATTERNS = dict(
 	QUOTE           = r"""(?P<quote>(?P<quoter>['"])(?P<quoted>.*?)(?P=quoter))""", # named parameters could through regexes that use \1 off
 	)
 if geopy:
-	UTIL_PATTERNS['DEGREE']          = geopy.format.DEGREE
-	UTIL_PATTERNS['PRIME']           = geopy.format.PRIME
-	UTIL_PATTERNS['DOUBLE_PRIME']    = geopy.format.DOUBLE_PRIME
+	UTIL_PATTERNS['DEGREE_SYM']          = geopy.format.DEGREE
+	UTIL_PATTERNS['PRIME_SYM']           = geopy.format.PRIME
+	UTIL_PATTERNS['DOUBLE_PRIME_SYM']     = geopy.format.DOUBLE_PRIME
 else:
-	UTIL_PATTERNS['DEGREE'      ]    = u'\xb0'   #chr(167) # ASCII or unicode? which can be used in RE patterns?
-	UTIL_PATTERNS['PRIME'       ]    = u'\u2032'
-	UTIL_PATTERNS['DOUBLE_PRIME']    = u'\u2033'
-UTIL_PATTERNS['DEGREE_SYM'] = r'['                   +UTIL_PATTERNS['DEGREE']      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
-UTIL_PATTERNS['ARCMIN_SYM'] = r'(?:arc|Arc|ARC)?['   +UTIL_PATTERNS['PRIME']       +r"'Mm][Ii]?[Nn]?", 
-UTIL_PATTERNS['ARCSEC_SYM'] = r'(?:arc|Arc|ARC)?\-?['+UTIL_PATTERNS['DOUBLE_PRIME']+r'"Ss?', 
+	UTIL_PATTERNS['DEGREE_SYM'      ]    = u'\xb0'   #chr(167) # ASCII or unicode? which can be used in RE patterns?
+	UTIL_PATTERNS['PRIME_SYM'       ]    = u'\u2032'
+	UTIL_PATTERNS['DOUBLE_PRIME_SYM']    = u'\u2033'
+UTIL_PATTERNS['DEGREE'] = r'['                   +UTIL_PATTERNS['DEGREE_SYM']      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
+UTIL_PATTERNS['ARCMIN'] = r'(?:arc|Arc|ARC)?['   +UTIL_PATTERNS['PRIME_SYM']       +r"'Mm][Ii]?[Nn]?", 
+UTIL_PATTERNS['ARCSEC'] = r'(?:arc|Arc|ARC)?\-?['+UTIL_PATTERNS['DOUBLE_PRIME_SYM']+r'"Ss?', 
 
 # TODO: Implement patterns for paths
 #   1. identify quoted and unquoted path names, with or without backslash-escaped spaces
@@ -148,18 +148,9 @@ QUANT_PATTERNS = dict(
 	MINUTE      = r'[0-5]\d',           # 00-59
 	SECOND      = r'[0-5]\d(?:\.\d+)?', # 00-59
 	)
-if geopy:
-	QUANT_PATTERNS['DEGREE']          = geopy.format.DEGREE
-	QUANT_PATTERNS['PRIME']           = geopy.format.PRIME
-	QUANT_PATTERNS['DOUBLE_PRIME']    = geopy.format.DOUBLE_PRIME
-else:
-	QUANT_PATTERNS['DEGREE'      ]    = u'\xb0'   #chr(167) # ASCII or unicode? which can be used in RE patterns?
-	QUANT_PATTERNS['PRIME'       ]    = u'\u2032'
-	QUANT_PATTERNS['DOUBLE_PRIME']    = u'\u2033'
-QUANT_PATTERNS['DEGREE_SYM'] = r'['                   +QUANT_PATTERNS['DEGREE']      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
-QUANT_PATTERNS['ARCMIN'] = r'(?:arc|Arc|ARC)?['   +QUANT_PATTERNS['PRIME']       +r"'Mm][Ii]?[Nn]?", 
-QUANT_PATTERNS['ARCSEC'] = r'(?:arc|Arc|ARC)?\-?['+QUANT_PATTERNS['DOUBLE_PRIME']+r'"Ss?', 
-
+for k,v in {'DEGREE':'DEGREE','ARCMIN':'PRIME','ARCSEC':'DOUBLE_PRIME'}.items():
+    QUANT_PATTERNS[k+'_SYM'] = UTIL_PATTERNS[v+'_SYM']
+    QUANT_PATTERNS[k       ] = UTIL_PATTERNS[k]
 
 #WARN: each of the lat/lon/alt elements needs to stop and not worry about armin/arcsec as soon as they get a decimal point, especially if no arcmin or arcsec units are given
 #TODO: to avoid ambiguity just require arcmin/arcsec units indicators rather than allowing a sequence of floats to be interpreted as d,m,s
