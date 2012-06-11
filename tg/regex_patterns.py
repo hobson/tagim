@@ -95,7 +95,7 @@ else:
 	UTIL_PATTERNS['DOUBLE_PRIME_SYM']    = u'\u2033'
 UTIL_PATTERNS['DEGREE'] = r'['                   +UTIL_PATTERNS['DEGREE_SYM']      +r'Dd\s][Ee]?[Gg]?', # HL: matches some typos, whitespace equivalent to deg sym
 UTIL_PATTERNS['ARCMIN'] = r'(?:arc|Arc|ARC)?['   +UTIL_PATTERNS['PRIME_SYM']       +r"'Mm][Ii]?[Nn]?", 
-UTIL_PATTERNS['ARCSEC'] = r'(?:arc|Arc|ARC)?\-?['+UTIL_PATTERNS['DOUBLE_PRIME_SYM']+r'"Ss?', 
+UTIL_PATTERNS['ARCSEC'] = r'(?:arc|Arc|ARC)?\-?['+UTIL_PATTERNS['DOUBLE_PRIME_SYM']+r'"Ss]?[Ee]?[Cc]?', 
 
 # TODO: Implement patterns for paths
 #   1. identify quoted and unquoted path names, with or without backslash-escaped spaces
@@ -155,26 +155,28 @@ for k,v in {'DEGREE':'DEGREE','ARCMIN':'PRIME','ARCSEC':'DOUBLE_PRIME'}.items():
 #WARN: each of the lat/lon/alt elements needs to stop and not worry about armin/arcsec as soon as they get a decimal point, especially if no arcmin or arcsec units are given
 #TODO: to avoid ambiguity just require arcmin/arcsec units indicators rather than allowing a sequence of floats to be interpreted as d,m,s
 POINT_PATTERN = re.compile(r"""
-	\s*
 	(?P<latitude>
 		(?P<latitude_degrees>%(FLOAT_NOE)s)[ ]?(?:%(DEGREE)s[ ]*
 			(?:(?P<latitude_arcminutes>%(FLOAT_NONEG_NOE)s)[ ]?%(ARCMIN)s[ ]*)?
 			(?:(?P<latitude_arcseconds>%(FLOAT_NONEG_NOE)s)[ ]?%(ARCSEC)s[ ]*)?
-		)?\s*(?P<latitude_direction>[NS])?)
+		)?\s*(?P<latitude_direction>[NS])?
+	)
 	%(SEP)s
 	(?P<longitude>
-		(?P<longitude_degrees>%(FLOAT)s)[ ]?(?:%(DEGREE)s[ ]*
+		(?P<longitude_degrees>%(FLOAT_NOE)s[ ]?(?:%(DEGREE)s[ ]*
 			(?:(?P<longitude_arcminutes>%(FLOAT_NONEG_NOE)s)[ ]?%(ARCMIN)s[ ]*)?
 			(?:(?P<longitude_arcseconds>%(FLOAT_NONEG_NOE)s)[ ]?%(ARCSEC)s[ ]*)?
-		)?\s*(?P<longitude_direction>[EW])?)
+		)?\s*(?P<longitude_direction>[EW])?) )
 	(?:
 		%(SEP)s
 			(?P<altitude>
 				(?P<altitude_distance>-?%(FLOAT)s)[ ]*
 				(?P<altitude_units>km|m|mi|ft|nm|nmi|mile|kilometer|meter|feet|foot|nautical[ ]mile)[s]?)
 	)?
-	\s*$
-""" % QUANT_PATTERNS, re.X | re.I) # HL: added case insensitivity which seemed to break things
+	\s*$""" % QUANT_PATTERNS, re.X | re.I) # HL: added case insensitivity which seemed to break things
+
+
+
 
 DATE_PATTERN = re.compile(r"""
 		(?P<y>%(YEAR)s)%(DATE_SEP)s
