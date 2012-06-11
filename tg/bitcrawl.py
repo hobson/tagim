@@ -1,38 +1,22 @@
 #!/usr/bin/python
 """Crawls the web looking for quantitative information about bitcoin popularity.
 
-	Examples (require Internet connection):
-	>>> bitcrawl
-	Mining URL "https://en.bitcoin.it/wiki/Real_world_shops" ...
-	Retrieved 28835 characters/bytes at 2012-04-02 17:37:06.709302+08:00
-	Mining URL "https://mtgox.com" ...
-	Retrieved 22493 characters/bytes at 2012-04-02 17:37:07.840549+08:00
-	Mining URL "http://bitcoincharts.com/about/markets-api/" ...
-	Retrieved 7712 characters/bytes at 2012-04-02 17:37:14.518451+08:00
-	Mining URL "https://en.bitcoin.it/wiki/Main_Page" ...
-	Retrieved 24069 characters/bytes at 2012-04-02 17:37:16.770427+08:00
-	Mining URL "https://bitcoinconsultancy.com/wiki/Main_Page" ...
-	Retrieved 18188 characters/bytes at 2012-04-02 17:37:19.173755+08:00
-	Mining URL "https://en.bitcoin.it/wiki/Trade" ...
-	Retrieved 303426 characters/bytes at 2012-04-02 17:37:22.602371+08:00
-	Getting REST data from URL "https://api.bitfloor.com/book/L2/1" ...
-	Retrieved a 1004-character JSON string at 2012-04-02 17:37:24.520884+08:00
-	Checking wikipedia view rate for "Bitcoin"
-	Mining URL "http://stats.grok.se/en/latest/Bitcoin" ...
-	Retrieved 11745 characters/bytes at 2012-04-02 17:37:28.240635+08:00
-	Checking wikipedia view rate for "James_Surowiecki"
-	Mining URL "http://stats.grok.se/en/latest/James_Surowiecki" ...
-	Retrieved 11746 characters/bytes at 2012-04-02 17:37:29.574902+08:00
-	Counting links by crawling URL "https://en.bitcoin.it/wiki/Trade" to a depth of 0...
-	Retrieved 225 links at "https://en.bitcoin.it/wiki/Trade"
-	Appended json records to "/home/hobs/Notes/notes_repo/bitcoin trend data.json"
-	MtGox price is $4.79240
+"""Module for crawling the web, extracting numbers, counting links and other stats
+
+    Calculates statistics of the data gathered and plots 2-D plots.
 	
-	Dependencies:
-		argparse -- ArgumentParser
-		urllib
-		urllib2
-		tz -- a local module
+    Standard Module Dependencies:
+        argparse    ArgumentParser
+        urllib      urlencode, urlopen,...
+        urllib2     HTTPRedirectHandler, HTTPCookieProcessor, etc
+        time        sleep
+        datetime    now(), datetime.strptime(), datetime.datetime(), etc
+        httplib     IncompleteRead
+        numpy       
+        matplotlib  pyplot.plot
+
+    Nonstandard Module Dependencies:
+        tz          Local # local time zone object definition
 
 	TODO:
 	1. deal with csv: http://www.google.com/trends/?q=bitcoin&ctab=0&geo=us&date=ytd&sort=0 , 
@@ -46,20 +30,40 @@
 	   b) write a browser plugin that allows a human to supervise the machine learning and identify useful/relevant quantitative data
 	5. implement the indexer and search engine for the double-star question 3 in CS101 and get quant data directly from the index
 	6. implement the levetshire distance algorithm from the CS101 exam for use in word-stemming and search term similarity estimate
+    7. record response time of web pages as one of the stats associated with each url
+    8. use historical load-time data to prioritize quickly-loading pages over defunt, slow pages (like bitcoinsonsultancy.com)
 
-	Author: Hobson Lane dba TotalGood
-	License: GPL v3
-	Attribution: Based on code at udacity.com licensed to CC BY-NC-SA
+	:author: Hobson Lane dba TotalGood
+    :copyright: 2012 by Hobson Lane (hobson@totalgood.com), see AUTHORS for details
+    :license:   Creative Commons BY-NC-SA, see LICENSE for more details
 """
 
-FILENAME='bitpart_historical_data.json'
+# TODO: smart import by wrapping all import statements in try: blocks
+# TODO: smarter import with gracefull fallback to "pass" or simple local implementations for unavailable modules
+# TODO: smartest import with pip install (setup.py install) of missing modules, if possible
+# TODO: ai import with automatic, on-the-fly, python source code generation... with comments and docstrings! ;)
+import datetime
+import time
+from tz import Local
+import os
+import urllib
+import urllib2
+import httplib
+import json
+from pprint import pprint
+from argparse import ArgumentParser
+import re
+from warnings import warn
+import matplotlib.pyplot as plt
+from utils import size, size2, size3
+import collections # .Iterable
 
-def parse_args():
-	# TODO: "meta-ize" this by only requiring number format specification in some common format 
-	#       like sprintf or the string input functions of C or python, and then convert to a good regex
-	# TODO: add optional units-of-measure and suffix patterns
-	# TODO: come up with some generalized format that allows you to count links or other stats on a page rather than just extracting a literal value
+FILEPATH=os.path.expanduser('data/bitcrawl_historical_data.json') # change this to a path you'd like to use to store data
+MIN_ORDINAL=1800*365.25 # data associated with datetime ordinals smaller than this will be ignored
+MAX_ORDINAL=2100*365.25 # data associated with datetime ordinals larger than this will be ignored
+SAMPLE_BIAS_COMP = 0 # whether to divide variance values by N-1 (0 divides by N so that small sample sets still give 1 for Pearson self-correlation coefficient)
 
+# Hard-coded regular expressions, keywords, and URLs for gleaning numerical data from the web
 	URLs={'network': 
 			{ 
 			  'url': 'http://bitcoincharts.com/about/markets-api/',
@@ -68,7 +72,7 @@ def parse_args():
 				 r'[0-9]{1,9}'                               ],  # (...)
 			  'total_btc': # total money supply of BTC
 				[r'<td class="label">Total BTC</td><td>',
-				 r'[0-9]{0,2}[.][0-9]{1,4}[MmKkGgBb]' ], 
+             r'[0-9]{0,2}[.][0-9]{1,4}[TGMKkBb]' ], 
 			  'difficulty':
 				[r'<td class="label">Difficulty</td><td>',
 				 r'[0-9]{1,10}' ], 
@@ -88,39 +92,84 @@ def parse_args():
 			'url': 'https://en.bitcoin.it/wiki/Trade',
 			'visits':
 				[r'has\sbeen\saccessed\s',
-				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
+             r'([0-9]{1,3}[,]?){1,4}'  ] }, 
 		'shop': {
 			'url': 'https://en.bitcoin.it/wiki/Real_world_shops',
 			'visits':
 				[r'has\sbeen\saccessed\s',
-				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
+             r'([0-9]{1,3}[,]?){1,4}'  ] }, 
 		'bitcoin': {
 			'url': 'https://en.bitcoin.it/wiki/Main_Page',
 			'visits':
 				[r'has\sbeen\saccessed\s',
-				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
-		'consultancy': {
-			'url': 'https://bitcoinconsultancy.com/wiki/Main_Page',
-			'visits':
-				[r'has\sbeen\saccessed\s',
-				 r'([0-9],)?[0-9]{3},[0-9]{3}'  ] }, 
+             r'([0-9]{1,3}[,]?){1,4}'  ] },
+# went "offline" sometime around May 20th
+#    'consultancy': {
+#        'url': 'https://bitcoinconsultancy.com/wiki/Main_Page',
+#        'visits':
+#            [r'has\sbeen\saccessed\s',
+#             r'([0-9]{1,3}[,]?){1,4}'  ] }, 
 		'mtgox':    {
 			'url': 'https://mtgox.com',
 			'average':
-			[r'Weighted Avg:<span>',
+        [r'Weighted\s*Avg\s*:\s*<span>',
 			 r'\$[0-9]{1,2}[.][0-9]{3,6}' ],  
 			'last':
-			[r'Last price:<span>',
+        [r'Last\s*price\s*:\s*<span>',
 			 r'\$[0-9]{1,2}[.][0-9]{3,6}' ],
 			'high':
-			[r'High:<span>',
+        [r'High\s*:\s*<span>',
 			 r'\$[0-9]{1,2}[.][0-9]{3,6}' ],
 			'low':
-			[r'Low:<span>',
+        [r'Low\s*:\s*<span>',
 			 r'\$[0-9]{1,2}[.][0-9]{3,6}' ],
 			'volume':
-			[r'Volume:<span>',
-			 r'\$[0-9]{1,9}' ] },
+        [r'Volume\s*:\s*<span>',
+         r'[0-9,]{1,9}' ] },
+    'virwox': {
+        'url': 'https://www.virwox.com/',
+        'volume':  # 24 hr volume
+        # (?s) means to match '\n' with dot ('.*' or '.*?')
+        [r"(?s)<fieldset>\s*<legend>\s*Trading\s*Volume\s*\(SLL\)\s*</legend>\s*<table.*?>\s*<tr.*?>\s*<td>\s*<b>\s*24\s*[Hh]ours\s*[:]?\s*</b>\s*</td>\s*<td>", 
+         r'[0-9,]{1,12}'],
+        'SLLperUSD_ask': 
+        [r"<tr.*?>USD/SLL</th><td.*?'buy'.*?>",
+         r'[0-9]{1,6}[.]?[0-9]{0,3}'],
+        'SLLperUSD_bid': 
+        [r"<tr.*?>USD/SLL</th.*?>\s*<td.*?'buy'.*?>.*?</td>\s*<td.*?'sell'.*?>",
+         r'[0-9]{1,6}[.]?[0-9]{0,3}'],
+        'BTCperSLL_ask': 
+        [r"<tr.*?><th.*?>BTC/SLL\s*</th>\s*<td\s*class\s*=\s*'buy'\s*width=\s*'33%'\s*>\s*", # TODO: generalize column/row/element extractors
+         r'[0-9]{1,6}[.]?[0-9]{0,3}'],
+        'BTCperSLL_bid': 
+        [r"<tr.*?>BTC/SLL</th.*?>\s*<td.*?'buy'.*?>.*?</td>\s*<td.*?'sell'.*?>",
+         r'[0-9]{1,6}[.]?[0-9]{0,3}'] },
+    'cointron': {  
+        'url': 'http://coinotron.com/coinotron/AccountServlet?action=home', # miner doesn't follow redirects like a browser so must use full URL
+        'hash_rate': 
+        [r'<tr.*?>\s*<td.*?>\s*BTC\s*</td>\s*<td.*?>\s*',
+         r'[0-9]{1,3}[.][0-9]{1,4}\s*[TMG]H',
+         r'</td>'], # unused suffix
+        'miners': 
+        [r'(?s)<tr.*?>\s*<td.*?>\s*BTC\s*</td>\s*<td.*?>\s*[0-9]{1,3}[.][0-9]{1,4}\s*[TGM]?H\s*</td>\s*<td.*?>'
+         r'[0-9]{1,4}\s*[BbMmKk]?',
+         r'</td>'], # unused suffix
+        'hash_rate_LTC':  # lightcoin
+        [r'<tr.*?>\s*<td.*?>\s*LTC\s*</td>\s*<td.*?>\s*',
+         r'[0-9]{1,3}[.][0-9]{1,4}\s*[TMG]H',
+         r'</td>'], # unused suffix
+        'miners_LTC': 
+        [r'(?s)<tr.*?>\s*<td.*?>\s*LTC\s*</td>\s*<td.*?>\s*[0-9]{1,3}[.][0-9]{1,4}\s*[TGM]?H\s*</td>\s*<td.*?>',
+         r'[0-9]{1,4}\s*[BbMmKk]?',
+         r'</td>'], # unused suffix
+        'hash_rate_SC':  # scamcoin
+        [r'<tr.*?>\s*<td.*?>\s*SC\s*</td>\s*<td.*?>\s*',
+         r'[0-9]{1,3}[.][0-9]{1,4}\s*[TMG]H',
+         r'</td>'], # unused suffix
+        'miners_SC': 
+        [r'(?s)<tr.*?>\s*<td.*?>\s*SC\s*</td>\s*<td.*?>\s*[0-9]{1,3}[.][0-9]{1,4}\s*[TGM]?H\s*</td>\s*<td.*?>',
+         r'[0-9]{1,4}\s*[BbMmKk]?',
+         r'</td>'] }, # unused suffix
 		}
 	from argparse import ArgumentParser
 	p = ArgumentParser(description=__doc__.strip())
