@@ -191,15 +191,15 @@ def display_meta(im):
     print '-------------EXIF Data-------------------'
     for k in exif:
         # escape_unprintable(str(...  or s.encode('utf_8','backslashreplace')
-        print "{0}: {1}".format(k,str(im[k].value))
+        print "{0}: {1}".format(k,unicode(im[k].value).encode('utf-8'))
     print '-----------------------------------------'
     print
     print '-------------IPTC Data-------------------'
     for k in iptc:
-        print "{0}: {1}".format(k,str(im[k].value))
+        print "{0}: {1}".format(k,unicode(im[k].value))
     print '-------------XMP Data-------------------'
     for k in xmp:
-        print "{0}: {1}".format(k,str(im[k].value))
+        print "{0}: {1}".format(k,unicode(im[k].value))
     print '-----------------------------------------'
     print
     print '------------- Comment -------------------'
