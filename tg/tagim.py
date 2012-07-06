@@ -183,29 +183,38 @@ def rotate_image(filename,angle=0.0,resample='bicubic',expand=True,flip=0):
         warn("Unknown camera model, so don't know whether it normally sets the Exif.Image.Orientation appropriately (no orientation sensor?). So writing a 1 to this field, which assumes the newly rotated image is upright.") # ,UserWarning # ,RuntimeWarning)
     im2.write()
 
-def display_meta(im):
-    exif = im.exif_keys
-    iptc = im.iptc_keys
-    xmp  = im.xmp_keys
+def unicode_noerr(s,errors='replace'):
+    """
+    Coerce input into a unicode (multibyte) string regardless of the type of input, without raising exceptions.
+    
+    Assumes any single-byte str has been encoded in UTF-8 encoded.
+    """
+    if type(s)==unicode: return s
+    elif type(s)==str: return s.decode('UTF-8',errors=errors)
+    else: return unicode(s)
 
-    print '-------------EXIF Data-------------------'
-    for k in exif:
-        # escape_unprintable(str(...  or s.encode('utf_8','backslashreplace')
-        print "{0}: {1}".format(k,unicode(im[k].value).encode('utf-8'))
-    print '-----------------------------------------'
-    print
-    print '-------------IPTC Data-------------------'
-    for k in iptc:
-        print "{0}: {1}".format(k,unicode(im[k].value).encode('utf-8'))
-    print '-------------XMP Data-------------------'
-    for k in xmp:
-        print "{0}: {1}".format(k,unicode(im[k].value).encode('utf-8'))
-    print '-----------------------------------------'
-    print
-    print '------------- Comment -------------------'
+def str_noerr(s,errors='replace'):
+    """
+    Coerce input into an 8-bit/char string regardless of the type of input, without raising exceptions.
+    
+    Uses UTF-8 encoding to encode multibyte unicode strings into single-byte strings.
+    """
+    if type(s)==str: return s
+    elif type(s)==unicode: return s.encode('UTF-8',errors=errors)
+    else: return str(s)
+
+def display_meta(im):
+    keysets = {'EXIF':im.exif_keys, 'IPTC':im.iptc_keys, ' XMP':im.xmp_keys}
+    for name,keys in keysets.items():
+        title = ' %s Data '%name
+        print '-'*30 + title + '-'*30
+        for k in keys:
+            print '{0}: {1}'.format(k,str_noerr(im[k].value, errors='replace'))
+        print '-'*(60+len(title)) 
+    print '-'*30 + ' Comment '+'-'*30
     print im.comment
-    print '-----------------------------------------'
-    return (exif, iptc, xmp)
+    print '-'*(60+len(title)) 
+    return keysets.values()
 
 def extract_tags(comment_string):
     comment_string=comment_string.strip()
