@@ -196,10 +196,10 @@ def display_meta(im):
     print
     print '-------------IPTC Data-------------------'
     for k in iptc:
-        print "{0}: {1}".format(k,unicode(im[k].value))
+        print "{0}: {1}".format(k,unicode(im[k].value).encode('utf-8'))
     print '-------------XMP Data-------------------'
     for k in xmp:
-        print "{0}: {1}".format(k,unicode(im[k].value))
+        print "{0}: {1}".format(k,unicode(im[k].value).encode('utf-8'))
     print '-----------------------------------------'
     print
     print '------------- Comment -------------------'

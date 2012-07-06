@@ -716,8 +716,12 @@ def titlize(s=''):
 
     unlike str.title() nlp.titlize does not lower the case of letters that are already
     capitalized, even those within a word (e.g. acronyms and allcaps words).
+    Converts unicode to ascii str, ignoring non-ascii characters.
     """
     s2=s;
+    # TODO: convert unicode to str ?
+#    if not isinstance(s2,str):
+#      s2 = str(unicode(s).encode('ascii','ignore'))
     capit=False
     for i,c in enumerate(s):
         if c not in LETTER:
@@ -734,7 +738,20 @@ def variablize(s=''):
     """
     # [0:255] ensures variable name, file name, or dictionary key is truncated to reasonable length
     # actHL: need to make sure acronyms aren't uncapitalized
-    return titlize(s.split('.')[0]).translate(None,NONVARIABLE)[0:256] # limit variables to len 256
+    translation_table = dict((ord(char), u'') for char in NONVARIABLE)
+    # translate on a unicode string only takes 1 argument (translation table)
+    print type(s)
+    print s
+    if isinstance(s,(str,unicode)):
+        title = titlize(s.split('.')[0])
+    else:
+        return 'UnknownVariable'
+    print type(title)
+    print title
+    print type(translation_table)
+    print translation_table
+    variable = title.translate(translation_table) # limit variables to len 100 characters
+    return variable[:100]
     # return titlize(s.split('.')[0]).translate(None,NONLETTER)[0:256]
 
 def split_string(source,splitlist):

@@ -74,6 +74,14 @@ class kaggle_dialect(csv.Dialect):
   lineterminator = '\r\n'
   quoting = csv.QUOTE_MINIMAL # QUOTE_NONNUMERIC # QUOTE_ALL # QUOTE_MINIMAL # QUOTE_NONE
 
+class odf_dialect(oo_dialect):
+  """CSV dialect used to read the csv files exported from OpenOffice spreadsheets.
+
+  I checked the box for "always quote text", so QUOTE_ALL is required
+  
+  """
+  quoting = csv.QUOTE_ALL # QUOTE_NONNUMERIC # QUOTE_ALL # QUOTE_MINIMAL # QUOTE_NONE
+
 class MetaGet:
   """Preprocess tabular data in text files (CSV, TSV, or TXT) gleaning meta data and normalizing data
   """
@@ -110,6 +118,10 @@ class Importer:
   
   
   """
+  # dialect classes, not instances
+  in_dialect      = nasdaq_dialect # dialect used to read in CSV data
+  out_dialect     = oo_dialect     # dialect used to write CSV files
+  sniffed_dialect = oo_dialect     # dialect sensed (sniffed) from the last read csv data file (schema tables aren't sniffed)
   appname = 'tgfinance'
   csv_models_file = 'csv_models.py'
   numfiles = 0
@@ -140,9 +152,12 @@ class Importer:
   def __init__(self, 
               csv_path=os.path.join(PROJECT_ROOT,appname,'fixtures'),
               revno=fda_revision_number, models_file=csv_models_file,
-              overwrite=False, refine=False, verbosity=1,file_names=[]):
+              overwrite=False, refine=False, verbosity=1,file_names=[],
+              in_dialect=None, out_dialect=oo_dialect):
     """Initialize an object to convert fda database text files to python data model script files.
     """
+    self.in_dialect  =  in_dialect or nasdaq_dialect
+    self.out_dialect = out_dialect or     oo_dialect
     self.clear_csv()
     self.overwrite=overwrite
     self.refine=refine
@@ -182,7 +197,7 @@ class Importer:
     return self.get_file_names(path,is_upper=True)
 
   def consolidate_schemas(self):
-    """Homogenize the schemase used for all csv_data tables in memory. Incomplete! Nonworking!
+    """Homogenize the schemas used for all csv_data tables in memory. Incomplete! Nonworking!
     
     Started this to deal with the OTCBB schema discrepancy with the others (AMEX, NASDAQ, NYSE)
     so that when the unsharded table is converted to a numpy array the .shape() function works properly.
@@ -330,7 +345,7 @@ class Importer:
     for fmn,schema in self.schemas.items():
       schema_path=os.path.join(self.full_path,str(schema['file_name'])+'.schema')
       with open(schema_path,'w') as outfile:
-        csvw = csv.writer(outfile,dialect=nasdaq_dialect) 
+        csvw = csv.writer(outfile,dialect=self.out_dialect) 
         for schema_key in self.schema_keys: # ordered list of schema keys?
           csvw.writerow(schema[schema_key])
 
@@ -479,10 +494,9 @@ class Importer:
     return fieldnames
 
           
-  def read_schema(self, infile):
-    # qHL: should the schema use the nasdaq_dialect or something more standard like csv with commas and quotes?
-    # qHL: should the schema reader use a dictreader like the others?
-    csvr = csv.reader(infile,dialect=nasdaq_dialect)
+  def read_schema(self, infile, dialect=None):
+    dialect = dialect or self.in_dialect
+    csvr = csv.reader(infile, dialect=dialect)
     j=0 # default_fields and schema_keys index 
     schema={}
     for row in csvr: # actHL: consider an enumerate(csvr) to get rid of j=0 j+=1 etc
@@ -532,10 +546,11 @@ class Importer:
     print 'First row after schema read: {0}'.format(schema['first_row'])
     return(schema)
 
-  def read_schemas(self, preprocess_rows=MAX_PREPROCESS_ROWS):
+  def read_schemas(self, preprocess_rows=MAX_PREPROCESS_ROWS, dialect=None):
     """Read *.txt.schema files into memory.
     
     Schema files describe the format and relationships for a csv or delimmited text file."""
+    dialect = dialect or self.in_dialect
     if self.verbosity:
       stderr.write('Reading schemas associated with csv files: '+str(self.file_names)+"\n")
     for ((file_index, fn), fmn) in zip(enumerate(self.file_names),self.file_model_names):
@@ -552,14 +567,11 @@ class Importer:
           stderr.write('Using csv file to create schema: '+str(csv_path)+"\n")
         with open(csv_path,'Ur') as infile:
           try:
-            sniffed_dialect = csv.Sniffer().sniff(infile.read(16000),",\t|")
+            self.sniffed_dialect = csv.Sniffer().sniff(infile.read(16000),",\t|")
           except:
-            sniffed_dialect = oo_dialect
+            self.sniffed_dialect = dialect
           infile.seek(0)
-          if sniffed_dialect: 
-            csvr = csv.reader(infile,dialect=sniffed_dialect())
-          else:
-            csvr = csv.reader(infile,dialect=oo_dialect)
+          csvr = csv.reader(infile,dialect=self.sniffed_dialect) # csv accepts both instances and classes of csv.Dialect or string names of previously defined dialects
           print 'Trying to figure out the schema from the table itself.'
           schema = self.table2schema(table=csvr, filename=fn, preprocess_rows=preprocess_rows)
       schema = self.check_schema(schema=schema)
@@ -662,7 +674,14 @@ class Importer:
       outfile.write(s)
       if self.verbosity:
         stderr.write('Python script file encoding was:' + str(outfile.encoding) +"\n")
-      
+        
+#  schema_keys=        ['column_name' ,'field_type','column_width' ,'is_key'       ,'is_null'    ,'is_blank'   ,'verbose_name','help_text']
+  def initialize_schema(fmn,overwrite=False):
+      if overwrite or not self.schemas.has_key(fmn):
+          self.schemas.update({fmn:{}})
+          for k in self.schema_keys:
+              self.schemas[fmn].update({k:[]})
+
   def read_tables(self):
     """Read *.txt.table files and form a schema in memory for each table file.\
     
@@ -698,17 +717,14 @@ class Importer:
           s=l.split(None,self.num_table_fields_before_asterisk_split-1) # careful, if you specify a whitespace character then a different algorithm runs
           # The following is unnecessary, a check of the field contents and formating occurs below
           # All this would do is prevent some blank table rows being generated with helptext containing the short, invalid text lines from the file
-          if not self.schemas.has_key(fmn):
-            self.schemas.update({fmn:{}})
-            for k in self.schema_keys:
-              self.schemas[fmn].update({k:[]})
+          initialize_schema(fmn)
           if len(s)<self.num_table_fields_before_asterisk_split:
-            if valid_fields==False:
-              stderr.write('Warning (csv2models.Importer.read_tables()): Row {0}, number of fields insufficient (<{1}), skipping to next line.'.format(
+            if valid_fields==False: # have you read any valid field rows yet?
+              stderr.write('Warning (csv2model.Importer.read_tables()): Row {0}, number of fields insufficient (<{1}), skipping to next line.'.format(
                 len(s),self.num_table_fields_before_asterisk_split))
               stderr.write( 'The faulty table line was: "{0}"'.format(l))
             else:
-              self.schemas[fmn]['help_text'][-1]=self.schemas[fmn]['help_text'][-1]+' '+l.strip(nlp.SPACE+eol)
+              self.schemas[fmn]['help_text'][-1]=self.schemas[fmn]['help_text'][-1]+' '+l.strip(nlp.SPACE+eol) # assume the first line in a schema text file is a help-text line
             continue                      
           # actHL: need some way of specifying generically this syntax where more than one schema field is contained in a single space-delimitted token      
           if s[2][0].isdigit() and s[2].endswith('*'):
@@ -756,7 +772,7 @@ class Importer:
     self.write_models()
 
   def tables2models(self):
-    """Read *.txt.table files, refine the reulstin schemas in memory, then write the
+    """Read *.txt.table files, refine the rules in the schemas in memory, then write the
     corresponding django models into an csv_models.py file."""
     self.read_tables()
     if self.refine:
@@ -845,7 +861,7 @@ class Importer:
       with open(csv_path,'w') as outfile: # w=write, U=universal (not possible for write mode)
         if self.verbosity:
           print 'Column names for csv file being written ({0}): {1}'.format(schema['file_name'],schema['column_name'])
-        cw = csv.writer(outfile,dialect=oo_dialect)
+        cw = csv.writer(outfile,dialect=self.out_dialect)
         cw.writerows(self.csv_data[fmn])
 
   
@@ -863,83 +879,156 @@ class Importer:
       self.find_files()
     if (len(self.schemas)<1):
       self.read_schemas()
-    self.check_schemas()
-    for ((filenum,fmn),schema) in zip(enumerate(self.schemas),self.schemas.itervalues()):
-      if filenum>M:
-        break
-      self.json_data.update({fmn: []}) # dict of dicts = {model_name:{field names:field values}} ready for json.dumps()
-      # warnHL: slice copy notation ([:]) prevents schema column names from being linked by reference to the first csv data row
-      if change_first_row:
-        self.csv_data.update({fmn: [schema['column_name'][:]]}) # dict of lists or list of {field names: field values} ready csv.writer()
-      else:
-        if schema['ignore_first_row']:
-          self.csv_data[fmn]=[schema['first_row'][:]]
-        else:
-          self.csv_data.update([[]])
-      with open(os.path.join(self.full_path,schema['file_name']),'Ur') as infile: # r=read, u=universal treatement of eol characters so that they are translated into \n's regardless
-        #dr = csv.DictReader(infile,fieldnames=schema['column_name'],dialect=nasdaq_dialect)
-        cr = csv.reader(infile,dialect=nasdaq_dialect)
-        pk_needed = schema['is_key'].count(1)!=1
-        if self.verbosity:
-          print 'Column names for json file ({0}): {1}'.format(schema['file_name'],schema['column_name'])
-        row={};
-        if schema['ignore_first_row']:
-          row=cr.next() # skip a row
-        for pk,row in enumerate(cr):
-          if pk>N:
+    self.check_schemas() # FIXME: what if there are no schema files?
+    if self.schemas:
+        for ((filenum,fmn),schema) in zip(enumerate(self.schemas),self.schemas.itervalues()):
+          if filenum>M:
             break
-          if self.verbosity and pk % verbosity_step == 0:
-            print 'Reading csv rows {0:08d}-{1:08d}'.format(pk+1, pk+verbosity_step )
-          csv_row=[]
-          for colnum,nm in enumerate(schema['column_name']):
-            if (len(nm)<=0):
-              continue
-            #obj = row.get(nm)
-            obj = row[colnum]
-            colwidth = schema['column_width'][colnum]
-            # make sure all numerical fields have None (null) value instead of empty strings ("")
-            # HL: also all string fields set to None
-            if schema['field_type'][colnum] in ['I','F','N']: # is this column supposed to store a number
-              if isinstance(colwidth,(float,int)):
-                if not isinstance( obj , (float,int) ) and not (nlp.is_number(obj,include_nan=True, include_empty=False)):
-                  if schema['is_null'][colnum] in nlp.YES: # or obj in nlp.NUMSTR:
-                    obj=None
-                  else:
-                    obj=type(colwidth)(0)
-            # is the csv field an ascii string and is the column width a valid (integer) number of characters?
-            elif schema['field_type'][colnum]=='A' and isinstance(obj,str):
-              colwidth=int(colwidth) # actHL: check that colwidth is already an integer
-              # does the text in the csv field exceed the allowed column_width (django model max_length tag)
-              if len(obj)>colwidth:
-                if self.verbosity:
-                  stderr.write("Warning (csv2models.csv2json()): Column {0}, row {1} in {2} is {3} long, so truncated to {4}.\n".format(
-                    colnum, pk, fmn, len(obj), colwidth))
-                obj=str(obj[:max(colwidth-1,0)]) # actHL: shouldn't this list be converted to a string or ''.join() ed ?
-            csv_row += [obj]
-          print csv_row[:]
-          row_dict = dict(zip(schema['column_name'][:],csv_row[:]))
-          json_row = {}
-          # pop delete's the first column from the row dictionary (so it isn't used as a json "field" item)
-          # and the popped value is used as the primary key ("pk") for the json entry or row_dict
-          if pk_needed: # have to generate a new key for the json entry because no single column acts as the primary key in the csv file
-            json_row["pk"] = pk+1 # enumerate function is handling the incrementing of pk, but it will start at zero unless increased by 1 here
-          else: # 
-            json_row["pk"] = row_dict.pop(schema['column_name'][schema['is_key'].index(1)]) # remove the part of the row_dict that is supposed to be the primary key
-          try:
-            row_dict.pop(None)
-          except KeyError:
-            pass
-          try:
-            row_dict.pop('')
-          except KeyError:
-            pass
-          json_row["model"] = str(self.appname)+'.'+fmn.lower()
-          json_row["fields"] = row_dict # the rest of the row_dict makes up the various field values for that json_row
-          # accumulate all the data in a single list before writing to file so that indentation and terminating punctuation comes out right
-          # this won't work for data sets larger than RAM
-          self.json_data[fmn].append(json_row)
-          self.csv_data[fmn].append(csv_row)
-        print 'First row of csv: {0}'.format(self.csv_data[fmn][0])
+          self.json_data.update({fmn: []}) # dict of dicts = {model_name:{field names:field values}} ready for json.dumps()
+          # warnHL: slice copy notation ([:]) prevents schema column names from being linked by reference to the first csv data row
+          if change_first_row:
+            self.csv_data.update({fmn: [schema['column_name'][:]]}) # dict of lists or list of {field names: field values} ready csv.writer()
+          else:
+            if schema['ignore_first_row']:
+              self.csv_data[fmn]=[schema['first_row'][:]]
+            else:
+              self.csv_data.update([[]])
+          with open(os.path.join(self.full_path,schema['file_name']),'Ur') as infile: # r=read, u=universal treatement of eol characters so that they are translated into \n's regardless
+            #dr = csv.DictReader(infile,fieldnames=schema['column_name'],dialect=nasdaq_dialect)
+            cr = csv.reader(infile,dialect=self.in_dialect)
+            pk_needed = schema['is_key'].count(1)!=1
+            if self.verbosity:
+              print 'Column names for json file ({0}): {1}'.format(schema['file_name'],schema['column_name'])
+            row={};
+            if schema['ignore_first_row']:
+              row=cr.next() # skip a row
+            for pk,row in enumerate(cr):
+              if pk>N:
+                break
+              if self.verbosity and pk % verbosity_step == 0:
+                print 'Reading csv rows {0:08d}-{1:08d}'.format(pk+1, pk+verbosity_step )
+              csv_row=[]
+              for colnum,nm in enumerate(schema['column_name']):
+                if (len(nm)<=0):
+                  continue
+                #obj = row.get(nm)
+                obj = row[colnum]
+                colwidth = schema['column_width'][colnum]
+                # make sure all numerical fields have None (null) value instead of empty strings ("")
+                # HL: also all string fields set to None
+                if schema['field_type'][colnum] in ['I','F','N']: # is this column supposed to store a number
+                  if isinstance(colwidth,(float,int)):
+                    if not isinstance( obj , (float,int) ) and not (nlp.is_number(obj,include_nan=True, include_empty=False)):
+                      if schema['is_null'][colnum] in nlp.YES: # or obj in nlp.NUMSTR:
+                        obj=None
+                      else:
+                        obj=type(colwidth)(0)
+                # is the csv field an ascii string and is the column width a valid (integer) number of characters?
+                elif schema['field_type'][colnum]=='A' and isinstance(obj,str):
+                  colwidth=int(colwidth) # actHL: check that colwidth is already an integer
+                  # does the text in the csv field exceed the allowed column_width (django model max_length tag)
+                  if len(obj)>colwidth:
+                    if self.verbosity:
+                      stderr.write("Warning (csv2model.csv2json()): Column {0}, row {1} in {2} is {3} long, so truncated to {4}.\n".format(
+                        colnum, pk, fmn, len(obj), colwidth))
+                    obj=str(obj[:max(colwidth-1,0)]) # actHL: shouldn't this list be converted to a string or ''.join() ed ?
+                csv_row += [obj]
+              print csv_row[:]
+              row_dict = dict(zip(schema['column_name'][:],csv_row[:]))
+              json_row = {}
+              # pop delete's the first column from the row dictionary (so it isn't used as a json "field" item)
+              # and the popped value is used as the primary key ("pk") for the json entry or row_dict
+              if pk_needed: # have to generate a new key for the json entry because no single column acts as the primary key in the csv file
+                json_row["pk"] = pk+1 # enumerate function is handling the incrementing of pk, but it will start at zero unless increased by 1 here
+              else: # 
+                json_row["pk"] = row_dict.pop(schema['column_name'][schema['is_key'].index(1)]) # remove the part of the row_dict that is supposed to be the primary key
+              try:
+                row_dict.pop(None)
+              except KeyError:
+                pass
+              try:
+                row_dict.pop('')
+              except KeyError:
+                pass
+              json_row["model"] = str(self.appname)+'.'+fmn.lower()
+              json_row["fields"] = row_dict # the rest of the row_dict makes up the various field values for that json_row
+              # accumulate all the data in a single list before writing to file so that indentation and terminating punctuation comes out right
+              # this won't work for data sets larger than RAM
+              self.json_data[fmn].append(json_row)
+              self.csv_data[fmn].append(csv_row)
+            print 'First row of csv: {0}'.format(self.csv_data[fmn][0])
+    else: # if schemas
+        for (filenum,fn) in enumerate(self.file_names):
+          fmn = variablize(fn)
+          if filenum>M:
+            break
+          self.json_data.update({fmn: []}) # dict of dicts = {model_name:{field names:field values}} ready for json.dumps()
+          self.schemas[fmn]=[]
+          # warnHL: slice copy notation ([:]) prevents schema column names from being linked by reference to the first csv data row
+          with open(os.path.join(self.full_path,fn,'Ur') as infile: # r=read, u=universal treatement of eol characters so that they are translated into \n's regardless
+            #dr = csv.DictReader(infile,fieldnames=schema['column_name'],dialect=nasdaq_dialect)
+            cr = csv.reader(infile,dialect=self.in_dialect)
+            pk_needed = schema['is_key'].count(1)!=1
+            if self.verbosity:
+              print 'Column names for json file ({0}): {1}'.format(schema['file_name'],schema['column_name'])
+            row={};
+            if schema['ignore_first_row']:
+              row=cr.next() # skip a row
+            for pk,row in enumerate(cr):
+              if pk>N:
+                break
+              if self.verbosity and pk % verbosity_step == 0:
+                print 'Reading csv rows {0:08d}-{1:08d}'.format(pk+1, pk+verbosity_step )
+              csv_row=[]
+              for colnum,nm in enumerate(schema['column_name']):
+                if (len(nm)<=0):
+                  continue
+                #obj = row.get(nm)
+                obj = row[colnum]
+                colwidth = schema['column_width'][colnum]
+                # make sure all numerical fields have None (null) value instead of empty strings ("")
+                # HL: also all string fields set to None
+                if schema['field_type'][colnum] in ['I','F','N']: # is this column supposed to store a number
+                  if isinstance(colwidth,(float,int)):
+                    if not isinstance( obj , (float,int) ) and not (nlp.is_number(obj,include_nan=True, include_empty=False)):
+                      if schema['is_null'][colnum] in nlp.YES: # or obj in nlp.NUMSTR:
+                        obj=None
+                      else:
+                        obj=type(colwidth)(0)
+                # is the csv field an ascii string and is the column width a valid (integer) number of characters?
+                elif schema['field_type'][colnum]=='A' and isinstance(obj,str):
+                  colwidth=int(colwidth) # actHL: check that colwidth is already an integer
+                  # does the text in the csv field exceed the allowed column_width (django model max_length tag)
+                  if len(obj)>colwidth:
+                    if self.verbosity:
+                      stderr.write("Warning (csv2model.csv2json()): Column {0}, row {1} in {2} is {3} long, so truncated to {4}.\n".format(
+                        colnum, pk, fmn, len(obj), colwidth))
+                    obj=str(obj[:max(colwidth-1,0)]) # actHL: shouldn't this list be converted to a string or ''.join() ed ?
+                csv_row += [obj]
+              print csv_row[:]
+              row_dict = dict(zip(schema['column_name'][:],csv_row[:]))
+              json_row = {}
+              # pop delete's the first column from the row dictionary (so it isn't used as a json "field" item)
+              # and the popped value is used as the primary key ("pk") for the json entry or row_dict
+              if pk_needed: # have to generate a new key for the json entry because no single column acts as the primary key in the csv file
+                json_row["pk"] = pk+1 # enumerate function is handling the incrementing of pk, but it will start at zero unless increased by 1 here
+              else: # 
+                json_row["pk"] = row_dict.pop(schema['column_name'][schema['is_key'].index(1)]) # remove the part of the row_dict that is supposed to be the primary key
+              try:
+                row_dict.pop(None)
+              except KeyError:
+                pass
+              try:
+                row_dict.pop('')
+              except KeyError:
+                pass
+              json_row["model"] = str(self.appname)+'.'+fmn.lower()
+              json_row["fields"] = row_dict # the rest of the row_dict makes up the various field values for that json_row
+              # accumulate all the data in a single list before writing to file so that indentation and terminating punctuation comes out right
+              # this won't work for data sets larger than RAM
+              self.json_data[fmn].append(json_row)
+              self.csv_data[fmn].append(csv_row)
+            print 'First row of csv: {0}'.format(self.csv_data[fmn][0])
 
   def write_json(self,records_per_file=10000): # break up json data into records_per_file 
     # HL: don't allow less than 100 records per file otherwise you may create more than 1K files
