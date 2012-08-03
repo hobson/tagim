@@ -495,6 +495,10 @@ def is_int(s,include_nan=False,include_empty=False):
 def is_integer(s,include_nan=False,include_empty=False):
     return is_int(s=s,include_nan=include_nan,include_empty=include_empty)
 
+def _integer(s,include_nan=False,include_empty=False):
+    return is_int(s=s,include_nan=include_nan,include_empty=include_empty)
+
+
 # does the string represent a quantity? date, time, range, float, int
 def is_quant(s):
     import time

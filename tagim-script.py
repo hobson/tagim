@@ -342,7 +342,10 @@ if o.date and im.has_key(DATE_TAG_KEY):
     im[tg.tagim.DATE_TAG_KEY]=tagim.parse_date(o.date)
 
 if o.verbose:
-    tagim.display_meta(im)
+    if o.debug:
+        tagim.display_meta_str(im)
+    else:
+        tagim.display_meta(im)
 
 if o.show:
     clargs = ['"{0}"'.format(o.image_filename),'']

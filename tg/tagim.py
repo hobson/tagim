@@ -203,13 +203,26 @@ def str_noerr(s,errors='replace'):
     elif type(s)==unicode: return s.encode('UTF-8',errors=errors)
     else: return str(s)
 
+def display_meta_str(im):
+    keysets = {'EXIF':im.exif_keys, 'IPTC':im.iptc_keys, ' XMP':im.xmp_keys}
+    for name,keys in keysets.items():
+        title = ' %s Data '%name
+        print '-'*30 + title + '-'*30
+        for k in keys:
+            print u'{0}: {1}'.format(str(k),str(im[k].value))
+        print '-'*(60+len(title)) 
+    print '-'*30 + ' Comment '+'-'*30
+    print im.comment
+    print '-'*(60+len(title)) 
+    return keysets.values()
+
 def display_meta(im):
     keysets = {'EXIF':im.exif_keys, 'IPTC':im.iptc_keys, ' XMP':im.xmp_keys}
     for name,keys in keysets.items():
         title = ' %s Data '%name
         print '-'*30 + title + '-'*30
         for k in keys:
-            print '{0}: {1}'.format(k,str_noerr(im[k].value, errors='replace'))
+            print u'{0}: {1}'.format(unicode_noerr(k),unicode_noerr(im[k].value, errors='replace'))
         print '-'*(60+len(title)) 
     print '-'*30 + ' Comment '+'-'*30
     print im.comment
