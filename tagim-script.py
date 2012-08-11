@@ -375,10 +375,13 @@ if o.dry_run:
     print(o.image_filename) # just print out the file name in case tagim was just used to find out the file path for the desktop image
     # only useful in combination with -q
 else:
-    if o.verbose:
-        print 'Writing meta data to file at ' + o.image_filename
     if o.tag or o.comment or o.date or o.gps: # or o.angle or o.flip: # but im.write() happens within tagim.rotate_image function already
+        if o.verbose:
+            print 'Writing meta data to file at ' + o.image_filename
         im.write()
+    else: 
+        if o.verbose:
+            print 'No need to write meta data to file at ' + o.image_filename
     if o.email_to:
         if not o.email_body:
             # use the revised comment field, including tags as the body of the e-mail

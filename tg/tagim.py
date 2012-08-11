@@ -187,7 +187,7 @@ def unicode_noerr(s,errors='replace'):
     """
     Coerce input into a unicode (multibyte) string regardless of the type of input, without raising exceptions.
     
-    Assumes any single-byte str has been encoded in UTF-8 encoded.
+    Assumes any single-byte str is ASCII or UTF-8.
     """
     if type(s)==unicode: return s
     elif type(s)==str: return s.decode('UTF-8',errors=errors)
@@ -209,7 +209,7 @@ def display_meta_str(im):
         title = ' %s Data '%name
         print '-'*30 + title + '-'*30
         for k in keys:
-            print u'{0}: {1}'.format(str(k),str(im[k].value))
+            print u'{0}: {1}'.format(str(k),str(im[k].value)) # surprisingly the u'' quoting is necessary
         print '-'*(60+len(title)) 
     print '-'*30 + ' Comment '+'-'*30
     print im.comment
@@ -222,10 +222,10 @@ def display_meta(im):
         title = ' %s Data '%name
         print '-'*30 + title + '-'*30
         for k in keys:
-            print u'{0}: {1}'.format(unicode_noerr(k),unicode_noerr(im[k].value, errors='replace'))
+            print u'{0}: {1}'.format(unicode_noerr(k,errors='replace'),unicode_noerr(im[k].value, errors='replace'))
         print '-'*(60+len(title)) 
     print '-'*30 + ' Comment '+'-'*30
-    print im.comment
+    print unicode_noerr(im.comment,errors='replace')
     print '-'*(60+len(title)) 
     return keysets.values()
 
