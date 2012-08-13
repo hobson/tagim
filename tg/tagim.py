@@ -210,15 +210,18 @@ def display_meta(im, stringifier=unicode_noerr):
         title = ' %s Data '%name
         print '-'*30 + title + '-'*30
         for k in keys:
-            print u'{0}: {1}'.format(stringifier(k),stringifier(im[k].value))
+            print '{0}: {1}'.format(stringifier(k),stringifier(im[k].value))
         print '-'*(60+len(title)) 
     print '-'*30 + ' Comment '+'-'*30
-    print stringifier(im.comment)
+    print '{0}'.format(stringifier(im.comment))
     print '-'*(60+len(title)) 
     return keysets.values()
 
 def display_meta_str(im):
     return display_meta(im, stringifier=str)
+
+def display_meta_ascii(im):
+    return display_meta(im, stringifier=str_noerr)
 
 def extract_tags(comment_string):
     comment_string=comment_string.strip()
