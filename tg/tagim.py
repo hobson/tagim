@@ -203,31 +203,22 @@ def str_noerr(s,errors='replace'):
     elif type(s)==unicode: return s.encode('UTF-8',errors=errors)
     else: return str(s)
 
-def display_meta_str(im):
+
+def display_meta(im, stringifier=unicode_noerr):
     keysets = {'EXIF':im.exif_keys, 'IPTC':im.iptc_keys, ' XMP':im.xmp_keys}
     for name,keys in keysets.items():
         title = ' %s Data '%name
         print '-'*30 + title + '-'*30
         for k in keys:
-            print u'{0}: {1}'.format(str(k),str(im[k].value)) # surprisingly the u'' quoting is necessary
+            print u'{0}: {1}'.format(stringifier(k),stringifier(im[k].value))
         print '-'*(60+len(title)) 
     print '-'*30 + ' Comment '+'-'*30
-    print im.comment
+    print stringifier(im.comment)
     print '-'*(60+len(title)) 
     return keysets.values()
 
-def display_meta(im):
-    keysets = {'EXIF':im.exif_keys, 'IPTC':im.iptc_keys, ' XMP':im.xmp_keys}
-    for name,keys in keysets.items():
-        title = ' %s Data '%name
-        print '-'*30 + title + '-'*30
-        for k in keys:
-            print u'{0}: {1}'.format(unicode_noerr(k,errors='replace'),unicode_noerr(im[k].value, errors='replace'))
-        print '-'*(60+len(title)) 
-    print '-'*30 + ' Comment '+'-'*30
-    print unicode_noerr(im.comment,errors='replace')
-    print '-'*(60+len(title)) 
-    return keysets.values()
+def display_meta_str(im):
+    return display_meta(im, stringifier=str)
 
 def extract_tags(comment_string):
     comment_string=comment_string.strip()
