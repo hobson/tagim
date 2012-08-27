@@ -99,7 +99,7 @@ class with_progress_meter(ProgressBase):
         if self.at > 0:
             spent = time.time() - self.start_time
             remaining = (self.total - self.at) * spent / self.at
-            text += ' (ETA: %d:%02d.%03d)' % (
+            text += ' (ETC: %01d:%02d.%03d)' % (
                 int(remaining) / 60,
                 int(remaining) % 60,
                 int(remaining * 1000) % 1000)

@@ -11,7 +11,7 @@ Depends On:
 
 TODO:
 	POINT_PATTERN still can't interpret triplet of floats as lat/lon/alt rather than deg/min/sec unless units are provided
-	Exponential notation for float or point should require a nubmer or +- immediately preceeding the E
+	Exponential notation for float or point should require a number or +- immediately preceeding the E
 	  otherwise it can confuse the N/S/E/W interpretation of E. 
 	  Geographic E should always be followed by a whitespace or punctuation, wherease exponent E shouldn't.
 	Examples:
