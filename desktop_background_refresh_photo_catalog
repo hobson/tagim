@@ -1,12 +1,17 @@
 #!/bin/bash
 #su --login hobs
+
 source byobu-reconnect-sockets
-SAFEHOME='/home/hobs'
-#D=$(date)
+# failed to connect to server: No such file or directory
+
+SAFEHOME="/home/$USER"
+LOGFILE='desktop_background_refresh_photo_catalog.log'
+CATALOGFILE='.desktop_slide_show_catalog.txt'
+#D=$(date '+%Y-m-d H-M-S')
 #U=$(whoami)
-echo "Starting desktop background photo catalog refresh for $(whoami) on $(date)" >> ${SAFEHOME}/desktop_background_refresh_photo_catalog.log
-find ${SAFEHOME}/Photos/ \( -type f -and -size +200k \) -and \( -iname '*.jpg' -or -iname '*.png' -or -iname '*.bmp' -or -iname '*.raw' \) -print > ${SAFEHOME}/.desktop_slide_show_catalog.txt
-PHOTOCOUNT=`cat ${SAFEHOME}/.desktop_slide_show_catalog.txt | grep / -c`
+echo "Starting desktop background photo catalog refresh for $(whoami) on $(date)" >> "$SAFEHOME/$LOGFILE"
+find ${SAFEHOME}/Photos/ \( -type f -and -size +100k \) -and \( -iname '*.jpg' -or -iname '*.png' -or -iname '*.bmp' -or -iname '*.raw' \) -print > "$SAFEHOME/$CATALOG_FILE"
+PHOTOCOUNT=`cat ${SAFEHOME}/$CATALOGFILE | grep / -c`
 RANDPHOTOPATH=`sed -n $[RANDOM*(PHOTOCOUNT-1)/32767+1]p ${SAFEHOME}/.desktop_slide_show_catalog.txt`
 gconftool-2 --type str ---set /desktop/gnome/background/picture_filename "${RANDPHOTOPATH}"
 #gconftool-2 --type str ---set /desktop/gnome/background/picture_filename "'${RANDPHOTOPATH}'"
