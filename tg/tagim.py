@@ -37,7 +37,8 @@ import commands  # equivalent to subprocess?
 import subprocess
 
 # gnome
-from gi.repository import Gio  #, Gtk
+from gi.repository import Gio  # , Gtk
+gsettings = Gio.Settings.new('org.gnome.desktop.background')
 
 # 3rd party
 import pyexiv2
@@ -47,6 +48,7 @@ import tg
 from tg.utils import zero_if_none, sign
 from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN
 import tg.nlp as nlp
+
 
 
 __version__ = '0.8'
@@ -65,14 +67,14 @@ DATE_TAG_KEY = 'Exif.Photo.DateTimeOriginal'
 # some hints from http://www.opanda.com/en/pe/help/gps.html
 #                 http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/GPS.html
 #                 http://www.jofti.com/files/index.php?option=com_content&view=article&id=29:geo-tag-2&catid=11:blog&Itemid=9
-# EXIF_GPSLatitudeRef EXIF_GPSLatitude EXIF_GPSLongitudeRef EXIF_GPSLongitude EXIF_GPSAltitudeRef EXIF_GPSAltitude EXIF_GPSTimeStamp EXIF_GPSSatellites EXIF_GPSStatus EXIF_GPSMeasureMode EXIF_GPSDOP EXIF_GPSSpeedRef EXIF_GPSSpeed EXIF_GPSTrackRef EXIF_GPSTrack EXIF_GPSImgDirectionRef EXIF_GPSImgDirection EXIF_GPSMapDatum EXIF_GPSDestLatitudeRef EXIF_GPSDestLatitude EXIF_GPSDestLongitudeRef EXIF_GPSDestLongitude EXIF_GPSDestBearingRef EXIF_GPSDestBearing EXIF_GPSDestDistanceRef 	EXIF_GPSDestDistance 
-
-
+# EXIF_GPSLatitudeRef EXIF_GPSLatitude EXIF_GPSLongitudeRef EXIF_GPSLongitude EXIF_GPSAltitudeRef EXIF_GPSAltitude EXIF_GPSTimeStamp EXIF_GPSSatellites EXIF_GPSStatus EXIF_GPSMeasureMode EXIF_GPSDOP EXIF_GPSSpeedRef EXIF_GPSSpeed EXIF_GPSTrackRef EXIF_GPSTrack EXIF_GPSImgDirectionRef EXIF_GPSImgDirection EXIF_GPSMapDatum EXIF_GPSDestLatitudeRef EXIF_GPSDestLatitude EXIF_GPSDestLongitudeRef EXIF_GPSDestLongitude EXIF_GPSDestBearingRef EXIF_GPSDestBearing EXIF_GPSDestDistanceRef 	EXIF_GPSDestDistance
 # HL: leave out all the "Ref" labels?
-EXIF_GPS_LABEL  = ['LatitudeRef', 'Latitude', 'LongitudeRef', 'Longitude', 'AltitudeRef', 'Altitude']
-EXIF_GPS_LABEL += ['TimeStamp', 'Satellites', 'Status', 'MeasureMode', 'DOP', 'SpeedRef', 'Speed', 'TrackRef']
-EXIF_GPS_LABEL += ['Track', 'ImgDirectionRef', 'ImgDirection', 'MapDatum', 'DestLatitudeRef', 'DestLatitude']
-EXIF_GPS_LABEL += ['DestLongitudeRef', 'DestLongitude', 'DestBearingRef', 'DestBearing', 'DestDistanceRef', 'DestDistance']
+EXIF_GPS_LABEL = [
+    'LatitudeRef', 'Latitude', 'LongitudeRef', 'Longitude', 'AltitudeRef', 'Altitude',
+    'TimeStamp', 'Satellites', 'Status', 'MeasureMode', 'DOP', 'SpeedRef', 'Speed', 'TrackRef',
+    'Track', 'ImgDirectionRef', 'ImgDirection', 'MapDatum', 'DestLatitudeRef', 'DestLatitude',
+    'DestLongitudeRef', 'DestLongitude', 'DestBearingRef', 'DestBearing', 'DestDistanceRef', 'DestDistance',
+                 ]
 
 EXIF_GPS_REF_SUFFIX = 'Ref'
 EXIF_GPS_PREFIX = 'GPS'
@@ -110,7 +112,8 @@ EXIF_gps_models  = [['Canon PowerShot S300','COOLPIX L18','C740UZ','Canon EOS 45
 # camera models and thier owners, a list in order from most likely photographer (byline) to least likely, for each camera
 # TODO: this belongs in a database based on previously processed and bylined photos for an individual
 # DEPLOY: RELEASE: delete this before deployment or release
-model_byline = {'Canon PowerShot S300': ['Hobson', 'Larissa'], 'COOLPIX L18': ['Catherine','Larissa','Hobson'],'C740UZ': ['Diane','Hobson','Larissa'], 'Canon EOS 450D': ['Larissa', 'Hobson', 'Diane'], 'KODAK EASYSHARE M863 DIGITAL CAMERA':['Hobson', 'Larissa'], 'DSC-W80': ['Hobson', 'Carlana', 'Dewey'], 'PENTAX K10D':['Ryan']}
+model_byline = {'Canon PowerShot S300': ['Hobson', 'Larissa'], 'COOLPIX L18': ['Catherine', 'Larissa', 'Hobson'], 'C740UZ': ['Diane', 'Hobson', 'Larissa'], 'Canon EOS 450D': ['Larissa', 'Hobson', 'Diane'], 'KODAK EASYSHARE M863 DIGITAL CAMERA':['Hobson', 'Larissa'], 'DSC-W80': ['Hobson', 'Carlana', 'Dewey'], 'PENTAX K10D':['Ryan']}
+
 
 # Desktop Background (DBG) paths
 DBG_PATH = os.path.realpath(os.path.join(home, '.cache', 'gnome-control-center', 'backgrounds', 'desktop_background_image_copy.jpg'))
@@ -118,9 +121,10 @@ DBG_PATH = os.path.realpath(os.path.join(home, 'Pictures', 'desktop_background_i
 DBG_CATALOG_PATH = os.path.realpath(os.path.join(home, '.desktop_slide_show_catalog.txt'))
 DBG_PHOTOS_PATH = os.path.realpath(os.path.join(home, 'Desktop', 'Photos'))
 DBG_LOG_PATH = os.path.realpath(os.path.join(home, '.desktop_background_refresh_photo_debug.log'))
-DB_LOG_PATH = os.path.realpath(os.path.join(home, 
-                                    '.desktop_background_refresh_photo_catalog.log'))
+DB_LOG_PATH = os.path.realpath(os.path.join(home, '.desktop_background_refresh_photo_catalog.log'))
 DBG_DB_PATH = os.path.realpath(os.path.join(DBG_PHOTOS_PATH, '.tagim_photo_sqlite_database.sqlite3'))
+# path to file used to set things like the unity boot up screen background
+UBUNTU_SPLASH_CONFIG_PATH = '/etc/lightdm/unity-greeter.conf'
 
 
 def rotate_image(filename, angle=0.0, resample='bicubic', expand=True, flip=0):
@@ -141,27 +145,27 @@ def rotate_image(filename, angle=0.0, resample='bicubic', expand=True, flip=0):
     False
     """
     from PIL import Image
-    if not nlp.is_number(angle) or abs(float(angle))<=1e-6:
+    if not nlp.is_number(angle) or abs(float(angle)) <= 1e-6:
         angle = 0
-    if not angle and flip not in [1,2]:
+    if not angle and flip not in [1, 2]:
         return
     angle=float(angle)
     im = pyexiv2.ImageMetadata(filename)
     im.read()
     # every camera make has different compliance standards
-    if resample==Image.NEAREST  or resample.lower().strip()=='nearest': 
-        resample=Image.NEAREST
-    elif resample==Image.BILINEAR or resample.lower().strip()=='bilinear': 
-        resample=Image.BILINEAR
+    if resample == Image.NEAREST  or resample.lower().strip() == 'nearest':
+        resample = Image.NEAREST
+    elif resample == Image.BILINEAR or resample.lower().strip() == 'bilinear':
+        resample = Image.BILINEAR
     else:
-        resample=Image.BICUBIC
+        resample = Image.BICUBIC
     # read in the filename using PIL and rotate it, then save it to the same file
     if angle:
-        im3=Image.open(filename)
-        im3.rotate(-1*angle,resample=resample,expand=expand).save(filename)
-    if flip in [1,2]:
-        im4=Image.open(filename)
-        im4.transpose(int(Image.FLIP_LEFT_RIGHT)+flip-1).save(filename)
+        im3 = Image.open(filename)
+        im3.rotate(-1 * angle, resample=resample, expand=expand).save(filename)
+    if flip in [1, 2]:
+        im4 = Image.open(filename)
+        im4.transpose(int(Image.FLIP_LEFT_RIGHT) + flip - 1).save(filename)
     # instantiate another object for writing to the image file's metadata to change the vertical/horizontal dimensions
     im2 = pyexiv2.ImageMetadata(filename)
     im2.read()
@@ -190,17 +194,22 @@ def rotate_image(filename, angle=0.0, resample='bicubic', expand=True, flip=0):
         warn("Unknown camera model, so don't know whether it normally sets the Exif.Image.Orientation appropriately (no orientation sensor?). So writing a 1 to this field, which assumes the newly rotated image is upright.") # ,UserWarning # ,RuntimeWarning)
     im2.write()
 
-def unicode_noerr(s,errors='replace'):
+
+def unicode_noerr(s, errors='replace'):
     """
     Coerce input into a unicode (multibyte) string regardless of the type of input, without raising exceptions.
     
     Assumes any single-byte str is ASCII or UTF-8.
     """
-    if type(s)==unicode: return s
-    elif type(s)==str: return s.decode('UTF-8',errors=errors)
-    else: return unicode(s)
+    if type(s) == unicode:
+        return s
+    elif type(s) == str:
+        return s.decode('UTF-8',errors=errors)
+    else:
+        return unicode(s)
 
-def str_noerr(s,errors='replace'):
+
+def str_noerr(s, errors='replace'):
     """
     Coerce input into an 8-bit/char string regardless of the type of input, without raising exceptions.
     
@@ -215,11 +224,11 @@ def display_meta(im, stringifier=unicode_noerr):
     keysets = {'EXIF':im.exif_keys, 'IPTC':im.iptc_keys, ' XMP':im.xmp_keys}
     for name,keys in keysets.items():
         title = ' %s Data '%name
-        print '-'*30 + title + '-'*30
+        print '-' * 30 + title + '-' * 30
         for k in keys:
             print '{0}: {1}'.format(stringifier(k),stringifier(im[k].value))
         print '-'*(60+len(title)) 
-    print '-'*30 + ' Comment '+'-'*30
+    print '-' * 30 + ' Comment ' + '-' * 30
     print '{0}'.format(stringifier(im.comment))
     print '-'*(60+len(title)) 
     return keysets.values()
@@ -233,7 +242,7 @@ def display_meta_ascii(im):
 def extract_tags(comment_string):
     comment_string=comment_string.strip()
     # actHL: need an or in the re to capture 'Tags: ' field identifier as the only line in the comment and enforce '\nTags: ' identifier otherwise
-    mo=re.search(r'(.*)(\n*Tags:\s*)(.*)(\n*.*)',comment_string) #(1).split(' ') #,flags=re.IGNORECASE).group(1)
+    mo=re.search(r'(.*)(\n*Tags:\s*)(.*)(\n*.*)', comment_string) #(1).split(' ') #,flags=re.IGNORECASE).group(1)
     tags=[]
     if not mo:
         return (tags,comment_string)
@@ -245,15 +254,16 @@ def extract_tags(comment_string):
             comment_without_tags += str(groups[3])
     return (tags,comment_without_tags)
 
+
 def deg2dms(deg):
     deg = float(deg)
-    assert isinstance(deg,float)
-    neg = bool(deg<0)
+    assert isinstance(deg, float)
+    neg = bool(deg < 0)
     assert neg==True or neg==False
     d = int(abs(deg)) # int is like floor() but towards zero for negative values (floor is towards negative infinity)
-    assert d>=0 
-    assert d<=abs(float(deg))
-    assert isinstance(d,int)
+    assert d >= 0 
+    assert d <= abs(float(deg))
+    assert isinstance(d, int)
     m = int((float(deg) - d)*60)
     assert isinstance(m,int)
     s = ((float(deg) - d)*60 - m)*60
@@ -295,6 +305,7 @@ def rationalize_float(f):
                     f=f, num=num, den=den, val=abs(f - num/den)/abs(f), max_den = MAX_RATIONALIZE_DENOMINATOR )
     return (int(round(num)),int(round(den)))
 
+
 def exif_gps_rationalize(deg):
     isneg = bool(deg<0)
     if isneg:
@@ -313,6 +324,7 @@ def exif_gps_rationalize(deg):
     (s_num,s_den)= rationalize_float(s)
     #print s_num,s_den
     return  ("{d}/1 {m}/1 {s}/{den}".format(d=int(round(d)),m=int(round(m)),s=int(round(s_num)),den=s_den), isneg)
+
 
 def location2latlon(location_string):
     import geopy
@@ -341,6 +353,7 @@ def location2latlon(location_string):
             return (None,None,None)
     return (lat,lon,alt)
 
+
 def latlon2exif(lat,lon,alt=0.0):
     # Need to rationalize them and get rid of sign (recording the sign separately)
     (latrat, latneg) = exif_gps_rationalize(lat)
@@ -366,6 +379,7 @@ def latlon2exif(lat,lon,alt=0.0):
                 EXIF_GPS_ALT_LABEL+EXIF_GPS_REF_SUFFIX: altref,
             }
 
+
 def deg2dm(decimal_degrees):
     """
     Convert decimal degrees to degrees, minutes, sign
@@ -374,6 +388,7 @@ def deg2dm(decimal_degrees):
     degrees = int(abs(decimal_degrees))
     decmial_minutes = abs(decimal_degrees)-degrees
     return (degrees, minutes, sgn)
+
 
 def latlon2pyexiv2(lat_deg,lon_deg):
     (d1,m1,sgn1) = deg2dm(lat_deg)
@@ -390,6 +405,7 @@ def latlon2pyexiv2(lat_deg,lon_deg):
     lat = pyexiv2.GPSCoordinate.from_string('{0:2d},{1:2.4d}{2:1s}'.format(d1,m1,chr(sgn1*(ord('N')-ord('S'))+ord('N'))))
     lon = pyexiv2.GPSCoordinate.from_string('{0:2d},{1:2.4d}{2:1s}'.format(d2,m2,chr(sgn2*(ord('E')-ord('W'))+ord('E'))))
     return (lat,lon)
+
 
 def set_gps_location(exiv_image, lat, lng):
     """Adds GPS position as EXIF metadata
@@ -432,6 +448,7 @@ def exif_gps_strings(location_string):
         return {}
     return latlon2exif(loctuple[0],loctuple[1],loctuple[2])
 
+
 def exif_unrationalize_gps(gps_exif_dict):
     # turn an exif representation of a gps position into a pair of floats for lat lon 
     #   gps_exif_dict = {lat_label: latrat, lon_label: lonrat, lat_label+ref_suffix: latref, lon_label+ref_suffix: lonref}, with floats expressed as fractions in deg, min, sec
@@ -470,6 +487,7 @@ def exif_unrationalize_gps(gps_exif_dict):
 #			print '---------------------'
     return(values)
 
+
 def parse_date(s):
     from datetime import datetime
     from math import floor
@@ -497,6 +515,7 @@ def parse_date(s):
         raise ValueError("Date time string not recognizeable or not within a valid date range (2199 BC to 2199 AD): %s" % s)
 #	return date.datetime.strptime(s,"%y %m %d %H:%M:%S")
 
+
 def set_image_path(filename):
     print filename
     if filename:
@@ -506,6 +525,7 @@ def set_image_path(filename):
         output = subprocess.Popen(
             ["gconftool-2"               ,'--get','/desktop/gnome/background/picture_filename'], stdout=subprocess.PIPE).communicate()[0]
     return output
+
 
 def exif2latlon(exif_dict):
     if not exif_dict:
@@ -517,6 +537,7 @@ def exif2latlon(exif_dict):
         if not EXIF_GPS_POS_LABELS[0] in values:
             return (None,None,None)
     return (values[EXIF_GPS_POS_LABELS[0]],values[EXIF_GPS_POS_LABELS[1]],values[EXIF_GPS_POS_LABELS[2]])
+
 
 def test_gps():
     test_gps_s = [
@@ -623,8 +644,12 @@ def shuffle_background_photo(image=''):
 
 def set_background_image(path):
     """Set the desktop background image to the path specified"""
-    gsettings = Gio.Settings.new('org.gnome.desktop.background')
     gsettings.set_string('picture-uri', "file://" + path)
+
+
+def image_path_from_gnome():
+    """Set the desktop background image to the path specified"""
+    return gsettings.get_string('picture-uri')
 
 
 def update_image_catalog():
@@ -635,8 +660,6 @@ def update_image_catalog():
     status,output = commands.getstatusoutput(command)
     return status
 
-# path to file used to set things like the unity boot up screen background
-UBUNTU_SPLASH_CONFIG_PATH = '/etc/lightdm/unity-greeter.conf'
 
 # Set the ubuntu startup screen background to an image file
 def set_splash_background(image='',ubuntu_splash_conf=UBUNTU_SPLASH_CONFIG_PATH):
@@ -655,52 +678,48 @@ def set_splash_background(image='',ubuntu_splash_conf=UBUNTU_SPLASH_CONFIG_PATH)
         msg = "{0}:{1}:\n  Set Ubuntu splash screen (bootup background) to '{2}'.".format(__file__,__name__,image)
         print >> dbg_log_file, msg
 
-def update_image_catalog():
-    import commands
-    command = "find '{0}' \( -type f -and -size +200k \) -and \( -iname '*.jpg' -or -iname '*.png' -or -iname '*.bmp' -or -iname '*.raw' \) -print > '{1}'".format(DBG_PHOTOS_PATH, DBG_CATALOG_PATH)
-    print command
-    status,output = commands.getstatusoutput(command)
-    return status
 
 def image_path_from_log(sequence_num=None):
     # Is subprocess.Popen better than os.system(...)? commands module might be better
     # It allows retrieval of output is the main thing.
     # TODO: use python functions in utils.replace_in_file or shutil instead of sed/tail
     if sequence_num:
-        status,output = commands.getstatusoutput( 'tail -n {0} {1} | head -n 1'.format( abs(sequence_num)*1+1, DB_LOG_PATH ))
+        status, output = commands.getstatusoutput('tail -n {0} {1} | head -n 1'.format(abs(sequence_num) * 1 + 1, DB_LOG_PATH))
     else: 
         status,output = commands.getstatusoutput('sed -n \$p {0}'.format(DB_LOG_PATH))
-    if output[-1]=='\n': # this has only ever happened with the subprocess.Popen command, but you never know
+    if output[-1] == '\n':  # this has only ever happened with the subprocess.Popen command, but you never know
         output=output[:-1]
-    return  os.path.normpath(os.path.abspath(output.strip()))
+    return os.path.normpath(os.path.abspath(output.strip()))
 
-# TODO: this no longer seems to work, in the latest Ubuntu
-def image_path_from_gnome():
-    # Is subprocess.Popen better than os.system(...)? commands module might be better
-    # It allows retrieval of output is the main thing.
-    output = subprocess.Popen(["gconftool-2",'--get','/desktop/gnome/background/picture_filename'], stdout=subprocess.PIPE).communicate()[0]
-    if output[-1]=='\n':
-        output=output[:-1]
-    return  os.path.normpath(os.path.abspath(output.strip()))
+
+# # TODO: this no longer seems to work, in the latest Ubuntu
+# def image_path_from_gnome():
+#     # Is subprocess.Popen better than os.system(...)? commands module might be better
+#     # It allows retrieval of output is the main thing.
+#     output = subprocess.Popen(["gconftool-2", '--get', '/desktop/gnome/background/picture_filename'], stdout=subprocess.PIPE).communicate()[0]
+#     if output[-1] == '\n':
+#         output=output[:-1]
+#     return  os.path.normpath(os.path.abspath(output.strip()))
+
 
 def image_path():
-    path_log=image_path_from_log()
-    path_gnome=image_path_from_gnome()
+    path_log = image_path_from_log()
+    path_gnome = image_path_from_gnome()
     print 'image_path_from_log():   ' + path_log + "\n"
     print 'image_path_from_gnome(): ' + path_gnome + "\n"
 
-    if identical_images(path_log,path_gnome):
+    if identical_images(path_log, path_gnome):
         return path_log
     else:
         raise RuntimeError("Unable to locate the source file for the image currently displayed as the desktop background.")
     return False
 
 
-def identical_images(path1,path2):
+def identical_images(path1, path2):
     from PIL import Image
-    im1=Image.open(path1)
-    im2=Image.open(path2)
-    return bool(im1==im2)
+    im1 = Image.open(path1)
+    im2 = Image.open(path2)
+    return bool(im1 == im2)
 compare_images = identical_images
 
 
