@@ -22,52 +22,57 @@ Depends On:
 TODO:
     Add a functions to e-mail, blog, or web2.0 share an image file.
     Eliminate model_byline variable and content before release!!!
-    this fails: tagim -i /home/hobs/photo...jpg --background  
+    this fails: tagim -i /home/hobs/photo...jpg --background
                 tagim hello world
             Error: Couldn't find the image file at 'Status=0 after copying user-designated image file at '/media/Win7/Users/Hobs/Documents/Photos/2008_10 MDR, Catalina, San Diego/IMG_3629.JPG' to dekstop background image location.'Image file name: 'Status=0 after copying user-designated image file at '/media/Win7/Users/Hobs/Documents/Photos/2008_10 MDR, Catalina, San Diego/IMG_3629.JPG' to dekstop background image location.'
 
 """
-
 # eliminates insidious integer division errors, otherwise '(1.0 + 2/3)' gives 1.0 (in python <3.0)
 from __future__ import division
+# stdlib
+from warnings import warn
+import os
+import re
+import commands  # equivalent to subprocess?
+import subprocess
 
-import tg;
+# gnome
+from gi.repository import Gio  #, Gtk
+
+# 3rd party
+import pyexiv2
+
+# tg
+import tg
 from tg.utils import zero_if_none, sign
 from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN
 import tg.nlp as nlp
 
-from warnings import warn
-import pyexiv2
 
-import os
-import re
-
-import commands # equivalent to subprocess?
-import subprocess
-
-version = '0.7'
-(user,home) = tg.user_home();
+__version__ = '0.8'
+(user, home) = tg.user_home()
 
 # I can't imagine GPS positions ever needing to be recorded better
 #  than a couple tenths of a milimeter (an arcsecond is about 1.7 meters)
 MAX_RATIONALIZE_BITS = 31
-MAX_RATIONALIZE_DENOMINATOR = 2**MAX_RATIONALIZE_BITS
-MIN_RATIONALIZE_FLOAT = 10.0/float(MAX_RATIONALIZE_DENOMINATOR)
+MAX_RATIONALIZE_DENOMINATOR = 2 ** MAX_RATIONALIZE_BITS
+MIN_RATIONALIZE_FLOAT = 10.0 / float(MAX_RATIONALIZE_DENOMINATOR)
 
-RATIONALIZE_DENOMINATOR_FACTOR = 2 # should be a power of 2 to avoid round off error in the conversion from a float to a fraction of integers
+RATIONALIZE_DENOMINATOR_FACTOR = 2  # should be a power of 2 to avoid round off error in the conversion from a float to a fraction of integers
 DATE_TAG_KEY = 'Exif.Photo.DateTimeOriginal'
 
 
-# some hints from http://www.opanda.com/en/pe/help/gps.html 
+# some hints from http://www.opanda.com/en/pe/help/gps.html
 #                 http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/GPS.html
 #                 http://www.jofti.com/files/index.php?option=com_content&view=article&id=29:geo-tag-2&catid=11:blog&Itemid=9
 # EXIF_GPSLatitudeRef EXIF_GPSLatitude EXIF_GPSLongitudeRef EXIF_GPSLongitude EXIF_GPSAltitudeRef EXIF_GPSAltitude EXIF_GPSTimeStamp EXIF_GPSSatellites EXIF_GPSStatus EXIF_GPSMeasureMode EXIF_GPSDOP EXIF_GPSSpeedRef EXIF_GPSSpeed EXIF_GPSTrackRef EXIF_GPSTrack EXIF_GPSImgDirectionRef EXIF_GPSImgDirection EXIF_GPSMapDatum EXIF_GPSDestLatitudeRef EXIF_GPSDestLatitude EXIF_GPSDestLongitudeRef EXIF_GPSDestLongitude EXIF_GPSDestBearingRef EXIF_GPSDestBearing EXIF_GPSDestDistanceRef 	EXIF_GPSDestDistance 
 
+
 # HL: leave out all the "Ref" labels?
-EXIF_GPS_LABEL  = ['LatitudeRef', 'Latitude', 'LongitudeRef', 'Longitude', 'AltitudeRef', 'Altitude',]
-EXIF_GPS_LABEL += ['TimeStamp', 'Satellites', 'Status', 'MeasureMode', 'DOP', 'SpeedRef', 'Speed', 'TrackRef',]
-EXIF_GPS_LABEL += ['Track', 'ImgDirectionRef', 'ImgDirection', 'MapDatum', 'DestLatitudeRef', 'DestLatitude',]
-EXIF_GPS_LABEL += ['DestLongitudeRef', 'DestLongitude', 'DestBearingRef', 'DestBearing', 'DestDistanceRef', 'DestDistance',]
+EXIF_GPS_LABEL  = ['LatitudeRef', 'Latitude', 'LongitudeRef', 'Longitude', 'AltitudeRef', 'Altitude']
+EXIF_GPS_LABEL += ['TimeStamp', 'Satellites', 'Status', 'MeasureMode', 'DOP', 'SpeedRef', 'Speed', 'TrackRef']
+EXIF_GPS_LABEL += ['Track', 'ImgDirectionRef', 'ImgDirection', 'MapDatum', 'DestLatitudeRef', 'DestLatitude']
+EXIF_GPS_LABEL += ['DestLongitudeRef', 'DestLongitude', 'DestBearingRef', 'DestBearing', 'DestDistanceRef', 'DestDistance']
 
 EXIF_GPS_REF_SUFFIX = 'Ref'
 EXIF_GPS_PREFIX = 'GPS'
@@ -88,35 +93,37 @@ EXIF_GPS_POS_LABELS = [EXIF_GPS_LAT_LABEL, EXIF_GPS_LON_LABEL, EXIF_GPS_ALT_LABE
 # describes the position of the 0th column and zeroth row, e.g. the point 0,0, <ref> http://sylvana.net/jpegcrop/exif_orientation.html </ref>
 # the desktop wallpaper seems to not take this setting into account (shotwell does seem to), so after rotation to upright
 # TODO: these belong in a public database and are probably unnecessary
-EXIF_orientation_name    =[None , 'top left' , 'top rght', 'btm rght', 'btm left', 'left top', 'rght top', 'rght btm', 'left btm']
+EXIF_orientation_name  = [None, 'top left', 'top rght', 'btm rght', 'btm left', 'left top', 'rght top', 'rght btm', 'left btm']
 # degrees to rotate the image data before or after flipping
-EXIF_orientation_angle   =[None ,      0     ,     0     ,     180   ,    180    ,     90    ,     90    ,    270    ,     270   ] 
+EXIF_orientation_angle = [None,      0    ,     0     ,     180   ,    180    ,     90    ,     90    ,    270    ,     270   ] 
 # 0 = no flip/transpose required, 1 = flip horizontally, 2 = flip vertically
-EXIF_orientation_flip    =[None ,      0     ,     1     ,      0   ,      1     ,      2    ,      0    ,     2     ,      0    ] 
+EXIF_orientation_flip  = [None,      0    ,     1     ,      0   ,      1     ,      2    ,      0    ,     2     ,      0    ] 
 # 0th array is list of camera models that don't report orientation, 1th is for cameras that do
-EXIF_orientation_makes  = [['CANON','NIKON','OLYMPUS OPTICAL CO.,LTD'],['CANON','KODAK','SONY','PENTAX', 'HTC']] 
-EXIF_orientation_models  = [['Canon PowerShot S300','COOLPIX L18','C740UZ'],['Canon EOS 450D','KODAK EASYSHARE M863 DIGITAL CAMERA','DSC-W80','PENTAX K10D', 'Android Dev Phone 1']] 
+EXIF_orientation_makes = [
+    ['CANON', 'NIKON', 'OLYMPUS OPTICAL CO.,LTD'],
+    ['CANON', 'KODAK', 'SONY', 'PENTAX', 'HTC']
+                         ]
+EXIF_orientation_models  = [['Canon PowerShot S300', 'COOLPIX L18','C740UZ'], ['Canon EOS 450D','KODAK EASYSHARE M863 DIGITAL CAMERA','DSC-W80','PENTAX K10D', 'Android Dev Phone 1']] 
 # whether or not to trust the GPS info from the camera
 EXIF_gps_makes  = [['CANON','NIKON','OLYMPUS OPTICAL CO.,LTD','CANON','KODAK','SONY','PENTAX Corporation'],['HTC']] 
 EXIF_gps_models  = [['Canon PowerShot S300','COOLPIX L18','C740UZ','Canon EOS 450D','KODAK EASYSHARE M863 DIGITAL CAMERA','DSC-W80','PENTAX K10D'],['Android Dev Phone 1']] 
 # camera models and thier owners, a list in order from most likely photographer (byline) to least likely, for each camera
 # TODO: this belongs in a database based on previously processed and bylined photos for an individual
 # DEPLOY: RELEASE: delete this before deployment or release
-model_byline = {'Canon PowerShot S300':['Hobson','Larissa'],'COOLPIX L18':['Catherine','Larissa','Hobson'],'C740UZ':['Diane','Hobson','Larissa'],'Canon EOS 450D':['Larissa','Hobson','Diane'],'KODAK EASYSHARE M863 DIGITAL CAMERA':['Hobson','Larissa'],'DSC-W80':['Hobson','Carlana','Dewey'],'PENTAX K10D':['Ryan']}
+model_byline = {'Canon PowerShot S300': ['Hobson', 'Larissa'], 'COOLPIX L18': ['Catherine','Larissa','Hobson'],'C740UZ': ['Diane','Hobson','Larissa'], 'Canon EOS 450D': ['Larissa', 'Hobson', 'Diane'], 'KODAK EASYSHARE M863 DIGITAL CAMERA':['Hobson', 'Larissa'], 'DSC-W80': ['Hobson', 'Carlana', 'Dewey'], 'PENTAX K10D':['Ryan']}
 
 # Desktop Background (DBG) paths
-DBG_PATH         = os.path.realpath(os.path.join(home, '.cache', 'gnome-control-center', 
-                                    'backgrounds','desktop_background_image_copy.jpg'))
+DBG_PATH = os.path.realpath(os.path.join(home, '.cache', 'gnome-control-center', 'backgrounds', 'desktop_background_image_copy.jpg'))
+DBG_PATH = os.path.realpath(os.path.join(home, 'Pictures', 'desktop_background_image_copy.jpg'))
 DBG_CATALOG_PATH = os.path.realpath(os.path.join(home, '.desktop_slide_show_catalog.txt'))
-DBG_PHOTOS_PATH  = os.path.realpath(os.path.join(home, 'Desktop', 'Photos'))
-DBG_LOG_PATH     = os.path.realpath(os.path.join(home, 
-                                    '.desktop_background_refresh_photo_debug.log'))
-DB_LOG_PATH      = os.path.realpath(os.path.join(home, 
+DBG_PHOTOS_PATH = os.path.realpath(os.path.join(home, 'Desktop', 'Photos'))
+DBG_LOG_PATH = os.path.realpath(os.path.join(home, '.desktop_background_refresh_photo_debug.log'))
+DB_LOG_PATH = os.path.realpath(os.path.join(home, 
                                     '.desktop_background_refresh_photo_catalog.log'))
-DBG_DB_PATH      = os.path.realpath(os.path.join(DBG_PHOTOS_PATH, 
-                                   '.tagim_photo_sqlite_database.db'))
+DBG_DB_PATH = os.path.realpath(os.path.join(DBG_PHOTOS_PATH, '.tagim_photo_sqlite_database.sqlite3'))
 
-def rotate_image(filename,angle=0.0,resample='bicubic',expand=True,flip=0):
+
+def rotate_image(filename, angle=0.0, resample='bicubic', expand=True, flip=0):
     """Rotate and/or flip the image data within a jpeg file.
 
     Examples:
@@ -571,16 +578,18 @@ def test_gps():
         r = parse_date(t)
         print "  dateime: "+str(r)
 
+
 # TODO: gnome gconf settings don't match the path to DBG_PATH, but this works anyway, why?
-def shuffle_background_photo(image=''): 
+def shuffle_background_photo(image=''):
+    import random
+    import shutil
     #(user,home) = tg.user_home();
-    dbg_log_file = open(DBG_LOG_PATH,mode='a')
-    db_log_file = open(DB_LOG_PATH,mode='a')
-    import random, commands, shutil
+    dbg_log_file = open(DBG_LOG_PATH, mode='a')
+    db_log_file = open(DB_LOG_PATH, mode='a')
     if image and os.path.isfile(image):
-        shutil.copy(os.path.realpath(image),DBG_PATH) # overwrite the existing background image
+        shutil.copy(os.path.realpath(image), DBG_PATH)  # overwrite the existing background image
         msg = "{0}:{1}:\n  Copied-designated image file, '{2}', to desktop background image location.".format(
-                  __file__,__name__,image)
+                  __file__, __name__, image)
         print >> dbg_log_file, msg
         print >> dbg_log_file, image
         db_log_file.write(str(image)+'\n')
@@ -598,7 +607,7 @@ def shuffle_background_photo(image=''):
         # TODO use tg.utils.replace_in_file instead of sed:
         status, RANDPHOTOPATH = commands.getstatusoutput(
             'sed -n {0}p "{1}"'.format(str(random.randint(1,int(PHOTOCOUNT))),DBG_CATALOG_PATH))
-    shutil.copy(RANDPHOTOPATH,DBG_PATH)
+    shutil.copy(RANDPHOTOPATH, DBG_PATH)
     print >> dbg_log_file, "  Finished copying over the desktop background image file with the image at:"
     #+os.linesep
     print >> dbg_log_file, RANDPHOTOPATH
@@ -610,6 +619,13 @@ def shuffle_background_photo(image=''):
     #mv ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt" ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp"
     #identify -verbose "${RANDPHOTOPATH}" >> "${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt"
     #cat ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp" >> ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp"
+
+
+def set_background_image(path):
+    """Set the desktop background image to the path specified"""
+    gsettings = Gio.Settings.new('org.gnome.desktop.background')
+    gsettings.set_string('picture-uri', "file://" + path)
+
 
 def update_image_catalog():
     # TODO: use shutils python module instead of linux bash shell command
@@ -679,14 +695,16 @@ def image_path():
         raise RuntimeError("Unable to locate the source file for the image currently displayed as the desktop background.")
     return False
 
+
 def identical_images(path1,path2):
     from PIL import Image
     im1=Image.open(path1)
     im2=Image.open(path2)
     return bool(im1==im2)
+compare_images = identical_images
 
-def compare_images(path1,path2):
-    return identical_images(path1,path2)
+
+
 
 # this all needs to be in a db class
 
