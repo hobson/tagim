@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Filename: tagim.py
+# Filename: gtkutil.py
 """Utilities for manipulating GUI objects using GTK3 (GObject) -- needs Quartz on Mac OSX, Gnome/X11 on Linux
 
 Examples:
