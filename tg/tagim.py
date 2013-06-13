@@ -36,9 +36,6 @@ import re
 import commands  # equivalent to subprocess?
 import subprocess
 
-# gnome
-from gi.repository import Gio  # , Gtk
-gsettings = Gio.Settings.new('org.gnome.desktop.background')
 
 # 3rd party
 import pyexiv2
@@ -49,6 +46,7 @@ from tg.utils import zero_if_none, sign
 from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN
 import tg.nlp as nlp
 
+import tg.gtkutil as gtk
 
 
 __version__ = '0.8'
@@ -75,6 +73,7 @@ EXIF_GPS_LABEL = [
     'Track', 'ImgDirectionRef', 'ImgDirection', 'MapDatum', 'DestLatitudeRef', 'DestLatitude',
     'DestLongitudeRef', 'DestLongitude', 'DestBearingRef', 'DestBearing', 'DestDistanceRef', 'DestDistance',
                  ]
+
 
 EXIF_GPS_REF_SUFFIX = 'Ref'
 EXIF_GPS_PREFIX = 'GPS'
@@ -116,7 +115,7 @@ model_byline = {'Canon PowerShot S300': ['Hobson', 'Larissa'], 'COOLPIX L18': ['
 
 
 # Desktop Background (DBG) paths
-DBG_PATH = os.path.realpath(os.path.join(home, '.cache', 'gnome-control-center', 'backgrounds', 'desktop_background_image_copy.jpg'))
+# DBG_PATH = os.path.realpath(os.path.join(home, '.cache', 'gnome-control-center', 'backgrounds', 'desktop_background_image_copy.jpg'))
 DBG_PATH = os.path.realpath(os.path.join(home, 'Pictures', 'desktop_background_image_copy.jpg'))
 DBG_CATALOG_PATH = os.path.realpath(os.path.join(home, '.desktop_slide_show_catalog.txt'))
 DBG_PHOTOS_PATH = os.path.realpath(os.path.join(home, 'Desktop', 'Photos'))
@@ -149,11 +148,11 @@ def rotate_image(filename, angle=0.0, resample='bicubic', expand=True, flip=0):
         angle = 0
     if not angle and flip not in [1, 2]:
         return
-    angle=float(angle)
+    angle = float(angle)
     im = pyexiv2.ImageMetadata(filename)
     im.read()
     # every camera make has different compliance standards
-    if resample == Image.NEAREST  or resample.lower().strip() == 'nearest':
+    if resample == Image.NEAREST or resample.lower().strip() == 'nearest':
         resample = Image.NEAREST
     elif resample == Image.BILINEAR or resample.lower().strip() == 'bilinear':
         resample = Image.BILINEAR
@@ -169,7 +168,7 @@ def rotate_image(filename, angle=0.0, resample='bicubic', expand=True, flip=0):
     # instantiate another object for writing to the image file's metadata to change the vertical/horizontal dimensions
     im2 = pyexiv2.ImageMetadata(filename)
     im2.read()
-    im.copy(im2) # copy over all the image meta-data from the original image to the new one (in memory)
+    im.copy(im2)  # copy over all the image meta-data from the original image to the new one (in memory)
     im2["Exif.Photo.PixelXDimension"] = im3.size[0]
     im2["Exif.Photo.PixelYDimension"] = im3.size[1]
     im2.write()
@@ -516,17 +515,6 @@ def parse_date(s):
 #	return date.datetime.strptime(s,"%y %m %d %H:%M:%S")
 
 
-def set_image_path(filename):
-    print filename
-    if filename:
-        output = subprocess.Popen(
-            ["gconftool-2",'--type','str','--set','/desktop/gnome/background/picture_filename',str(filename)])
-    else:
-        output = subprocess.Popen(
-            ["gconftool-2"               ,'--get','/desktop/gnome/background/picture_filename'], stdout=subprocess.PIPE).communicate()[0]
-    return output
-
-
 def exif2latlon(exif_dict):
     if not exif_dict:
         return (None,None,None)
@@ -568,25 +556,25 @@ def test_gps():
         #print r 
         #print ' ?== ' 
         # WARN: this doesn't work, need to put together a full-circle assert/test
-        (lat1,lon1,alt1)=exif2latlon(r) # WARN sign is corrupted by this point
-        assert lat1<=  90.0
-        assert lat1>= -90.0
-        assert lon1<= 180.0
-        assert lon1>=-180.0
-        assert abs(lat-lat1)<1e-6, "lat: abs({lat}-{lat1})<1e-6".format(lat=lat,lat1=lat1)
-        assert abs(lon-lon1)<1e-6, "lon: abs(lon-lon1)<1e-6".format(lon=lon,lon1=lon1)
-        assert alt==alt1
+        (lat1, lon1, alt1) = exif2latlon(r) # WARN sign is corrupted by this point
+        assert lat1 <=   90.0
+        assert lat1 >=  -90.0
+        assert lon1 <=  180.0
+        assert lon1 >= -180.0
+        assert abs(lat - lat1) < 1e-6, "lat: abs({lat}-{lat1})<1e-6".format(lat=lat, lat1=lat1)
+        assert abs(lon - lon1) < 1e-6, "lon: abs(lon-lon1)<1e-6".format(lon=lon, lon1=lon1)
+        assert alt == alt1
 
         s = exif_gps_strings(str(lat) + ' deg ' + str(lon) + ' deg ' + str(alt) + ' m ')
         # WARN: this doesn't really verify the original conversion from string into floats
-        (lat2,lon2,alt2)=exif2latlon(s)
-        assert lat2<=  90.0
-        assert lat2>= -90.0
-        assert lon2<= 180.0
-        assert lon2>=-180.0
-        assert abs(lat-lat2)<1e-6, "lat: abs({lat}-{lat2})<1e-6".format(lat=lat,lat2=lat2)
-        assert abs(lon-lon2)<1e-6, "lon: abs(lon-lon2)<1e-6".format(lon=lon,lon2=lon2)
-        assert alt1==alt2 
+        (lat2, lon2, alt2) = exif2latlon(s)
+        assert lat2 <=   90.0
+        assert lat2 >=  -90.0
+        assert lon2 <=  180.0
+        assert lon2 >= -180.0
+        assert abs(lat - lat2) < 1e-6, "lat: abs({lat}-{lat2})<1e-6".format(lat=lat, lat2=lat2)
+        assert abs(lon - lon2) < 1e-6, "lon: abs(lon-lon2)<1e-6".format(lon=lon, lon2=lon2)
+        assert alt1 == alt2 
         #print sassert
     test_date_s = [
         '2011/02/14 12:06:38',
@@ -609,25 +597,24 @@ def shuffle_background_photo(image=''):
     db_log_file = open(DB_LOG_PATH, mode='a')
     if image and os.path.isfile(image):
         shutil.copy(os.path.realpath(image), DBG_PATH)  # overwrite the existing background image
-        msg = "{0}:{1}:\n  Copied-designated image file, '{2}', to desktop background image location.".format(
-                  __file__, __name__, image)
+        msg = "{0}:{1}:\n  Copied-designated image file, '{2}', to desktop background image location.".format(__file__, __name__, image)
         print >> dbg_log_file, msg
         print >> dbg_log_file, image
-        db_log_file.write(str(image)+'\n')
+        db_log_file.write(str(image) + '\n')
         dbg_log_file.close()
         db_log_file.close()
         return image
-    msg = "{0}:{1}:\n  Starting desktop background random selection.".format(__file__,__name__)
+    msg = "{0}:{1}:\n  Starting desktop background random selection.".format(__file__, __name__)
     print >> dbg_log_file, msg
     # TODO use tg.utils.find_in_files or shutil or similar instead of cat and grep:
     status, PHOTOCOUNT = commands.getstatusoutput('cat {0} | grep / -c'.format(DBG_CATALOG_PATH))  # status=0 if success
 
     RANDPHOTOPATH = ''
-    status = True # status = 0 when successful shell command is run
+    status = True  # status = 0 when successful shell command is run
     while status or not RANDPHOTOPATH or not os.path.isfile(RANDPHOTOPATH):
         # TODO use tg.utils.replace_in_file instead of sed:
         status, RANDPHOTOPATH = commands.getstatusoutput(
-            'sed -n {0}p "{1}"'.format(str(random.randint(1,int(PHOTOCOUNT))),DBG_CATALOG_PATH))
+            'sed -n {0}p "{1}"'.format(str(random.randint(1, int(PHOTOCOUNT))), DBG_CATALOG_PATH))
     shutil.copy(RANDPHOTOPATH, DBG_PATH)
     print >> dbg_log_file, "  Finished copying over the desktop background image file with the image at:"
     #+os.linesep
@@ -642,40 +629,30 @@ def shuffle_background_photo(image=''):
     #cat ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp" >> ${SAFEHOME}/Desktop/DESKTOP_BACKGROUND_PHOTO_INFO.txt.prepend.tmp"
 
 
-def set_background_image(path):
-    """Set the desktop background image to the path specified"""
-    gsettings.set_string('picture-uri', "file://" + path)
-
-
-def image_path_from_gnome():
-    """Set the desktop background image to the path specified"""
-    return gsettings.get_string('picture-uri')
-
-
 def update_image_catalog():
     # TODO: use shutils python module instead of linux bash shell command
     import commands
     command = "find '{0}' \( -type f -and -size +200k \) -and \( -iname '*.jpg' -or -iname '*.png' -or -iname '*.bmp' -or -iname '*.raw' \) -print > '{1}'".format(DBG_PHOTOS_PATH, DBG_CATALOG_PATH)
     print command
-    status,output = commands.getstatusoutput(command)
+    status, output = commands.getstatusoutput(command)
     return status
 
 
 # Set the ubuntu startup screen background to an image file
-def set_splash_background(image='',ubuntu_splash_conf=UBUNTU_SPLASH_CONFIG_PATH):
+def set_splash_background(image='', ubuntu_splash_conf=UBUNTU_SPLASH_CONFIG_PATH):
     print 'file='+__file__
     import tg.regex_patterns
     import tg.utils
-    dbg_log_file = open(DBG_LOG_PATH,mode='a')
+    dbg_log_file = open(DBG_LOG_PATH, mode='a')
     if image and os.path.isfile(image):
         # read file into string?
         EOL = tg.regex_patterns.UTIL_PATTERNS['EOL']
         patt = r'(?m)(?P<pretext>'+EOL+r'[[]greeter[]](?:.*'+EOL+r')+\s*background\s*=\s*)' \
                + tg.regex_patterns.PATH_PATTERNS['LIN']
         # substitute patten with image path
-        tg.utils.multiline_replace_in_file(patt,r"""(?P=pretext)'"""+image+"'",ubuntu_splash_conf)
+        tg.utils.multiline_replace_in_file(patt, r"""(?P=pretext)'""" + image + "'", ubuntu_splash_conf)
         # re.sub = sub(patt, repl, string, count=0, flags=0)
-        msg = "{0}:{1}:\n  Set Ubuntu splash screen (bootup background) to '{2}'.".format(__file__,__name__,image)
+        msg = "{0}:{1}:\n  Set Ubuntu splash screen (bootup background) to '{2}'.".format(__file__, __name__, image)
         print >> dbg_log_file, msg
 
 
@@ -685,26 +662,16 @@ def image_path_from_log(sequence_num=None):
     # TODO: use python functions in utils.replace_in_file or shutil instead of sed/tail
     if sequence_num:
         status, output = commands.getstatusoutput('tail -n {0} {1} | head -n 1'.format(abs(sequence_num) * 1 + 1, DB_LOG_PATH))
-    else: 
-        status,output = commands.getstatusoutput('sed -n \$p {0}'.format(DB_LOG_PATH))
+    else:
+        status, output = commands.getstatusoutput('sed -n \$p {0}'.format(DB_LOG_PATH))
     if output[-1] == '\n':  # this has only ever happened with the subprocess.Popen command, but you never know
-        output=output[:-1]
-    return os.path.normpath(os.path.abspath(output.strip()))
-
-
-# # TODO: this no longer seems to work, in the latest Ubuntu
-# def image_path_from_gnome():
-#     # Is subprocess.Popen better than os.system(...)? commands module might be better
-#     # It allows retrieval of output is the main thing.
-#     output = subprocess.Popen(["gconftool-2", '--get', '/desktop/gnome/background/picture_filename'], stdout=subprocess.PIPE).communicate()[0]
-#     if output[-1] == '\n':
-#         output=output[:-1]
-#     return  os.path.normpath(os.path.abspath(output.strip()))
+        output = output[:-1]
+    return os.path.normpath(os.path.abspath(os.path.expandvars(os.path.expanduser(output.strip()))))
 
 
 def image_path():
     path_log = image_path_from_log()
-    path_gnome = image_path_from_gnome()
+    path_gnome = gtk.desktop_image_path()
     print 'image_path_from_log():   ' + path_log + "\n"
     print 'image_path_from_gnome(): ' + path_gnome + "\n"
 

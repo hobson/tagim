@@ -241,12 +241,14 @@ else:
     except ValueError:
         pass
 
-if isinstance(sequencenum,int) and not os.path.isfile(o.image_filename):
+if isinstance(sequencenum, int) and not os.path.isfile(o.image_filename):
     o.image_filename = tagim.image_path_from_log(sequencenum)
-    print repr(o.image_filename)
-
+if not os.path.isfile(o.image_filename):
+    o.image_filename = tagim.image_path_from_gnome()
 if not os.path.isfile(o.image_filename):
     raise IOError("Error: Couldn't find the image file at '{0}'".format(o.image_filename))
+else:
+    print repr(o.image_filename)
 
 if o.verbose:
   print "Image file name: '{0}'".format(o.image_filename)
@@ -256,7 +258,7 @@ if o.angle or int(o.flip):
         o.angle=0.0
     if not o.flip:
         o.flip=0
-    im=tagim.rotate_image(o.image_filename,angle=round(float(o.angle),2),flip=int(o.flip))
+    im = tagim.rotate_image(o.image_filename,angle=round(float(o.angle), 2), flip=int(o.flip))
     p = tagim.image_path_from_log()
     print 'path tagim.image_path(): ' + p + "\n"
     print 'path o.image_filename: ' + o.image_filename + "\n"
