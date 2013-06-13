@@ -41,6 +41,7 @@ import pyexiv2
 # tg
 import tg
 from tg.utils import *  # zero_if_none, sign
+import tg.get_paths
 from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN
 import tg.nlp as nlp
 
@@ -118,10 +119,11 @@ DBG_PATH = os.path.realpath(os.path.join(home, 'Pictures', 'desktop_background_i
 DBG_PATH = gtk.get_background_path() or DBG_PATH or 'desktop_background_image_copy.jpg'
 DBG_CATALOG_PATH = os.path.realpath(os.path.join(home, '.desktop_slide_show_catalog.txt'))
 
-DBG_PHOTOS_PATH = get_paths.normalize_path(os.path.join(home, 'Desktop', 'Photos'))
-DBG_LOG_PATH = get_paths.normalize_path(os.path.join(home, '.desktop_background_refresh_photo_debug.log'))
-DB_LOG_PATH = get_paths.normalize_path(os.path.join(home, '.desktop_background_refresh_photo_catalog.log'))
-DBG_DB_PATH = get_paths.normalize_path(os.path.join(DBG_PHOTOS_PATH, '.tagim_photo_sqlite_database.sqlite3'))
+# use tg.get_paths.find_project_path or xapian (tracker desktop search db) similar to find a folder containing a lot of jpgs
+DBG_PHOTOS_PATH = tg.get_paths.normalize_path(os.path.join(home, 'Pictures'))
+DBG_LOG_PATH = tg.get_paths.normalize_path(os.path.join(home, '.desktop_background_refresh_photo_debug.log'))
+DB_LOG_PATH = tg.get_paths.normalize_path(os.path.join(home, '.desktop_background_refresh_photo_catalog.log'))
+DBG_DB_PATH = tg.get_paths.normalize_path(os.path.join(DBG_PHOTOS_PATH, '.tagim_photo_sqlite_database.sqlite3'))
 # path to file used to set things like the unity boot up screen background
 UBUNTU_SPLASH_CONFIG_PATH = '/etc/lightdm/unity-greeter.conf'
 
@@ -617,8 +619,10 @@ def shuffle_background_photo(image=''):
     status = True  # status = 0 when successful shell command is run
     while status or not RANDPHOTOPATH or not os.path.isfile(RANDPHOTOPATH):
         # TODO use tg.utils.replace_in_file instead of sed:
-        status, RANDPHOTOPATH = commands.getstatusoutput(
-            'sed -n {0}p "{1}"'.format(str(random.randint(1, int(PHOTOCOUNT))), DBG_CATALOG_PATH))
+        print status, RANDPHOTOPATH
+        cmd = 'sed -n {0}p "{1}"'.format(str(random.randint(1, int(PHOTOCOUNT))), DBG_CATALOG_PATH)
+        print cmd
+        status, RANDPHOTOPATH = commands.getstatusoutput(cmd)
     shutil.copy(RANDPHOTOPATH, DBG_PATH)
     print >> dbg_log_file, "  Finished copying over the desktop background image file with the image at:"
     #+os.linesep
