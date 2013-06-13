@@ -34,15 +34,13 @@ from warnings import warn
 import os
 import re
 import commands  # equivalent to subprocess?
-import subprocess
-
 
 # 3rd party
 import pyexiv2
 
 # tg
 import tg
-from tg.utils import zero_if_none, sign
+from tg.utils import *  # zero_if_none, sign
 from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN
 import tg.nlp as nlp
 
@@ -94,34 +92,36 @@ EXIF_GPS_POS_LABELS = [EXIF_GPS_LAT_LABEL, EXIF_GPS_LON_LABEL, EXIF_GPS_ALT_LABE
 # describes the position of the 0th column and zeroth row, e.g. the point 0,0, <ref> http://sylvana.net/jpegcrop/exif_orientation.html </ref>
 # the desktop wallpaper seems to not take this setting into account (shotwell does seem to), so after rotation to upright
 # TODO: these belong in a public database and are probably unnecessary
-EXIF_orientation_name  = [None, 'top left', 'top rght', 'btm rght', 'btm left', 'left top', 'rght top', 'rght btm', 'left btm']
+EXIF_orientation_name = [None, 'top left', 'top rght', 'btm rght', 'btm left', 'left top', 'rght top', 'rght btm', 'left btm']
 # degrees to rotate the image data before or after flipping
-EXIF_orientation_angle = [None,      0    ,     0     ,     180   ,    180    ,     90    ,     90    ,    270    ,     270   ] 
+EXIF_orientation_angle = [None,      0    ,     0     ,     180   ,    180    ,     90    ,     90    ,    270    ,     270   ]
 # 0 = no flip/transpose required, 1 = flip horizontally, 2 = flip vertically
-EXIF_orientation_flip  = [None,      0    ,     1     ,      0   ,      1     ,      2    ,      0    ,     2     ,      0    ] 
+EXIF_orientation_flip = [None,      0    ,     1     ,      0   ,      1     ,      2    ,      0    ,     2     ,      0    ]
 # 0th array is list of camera models that don't report orientation, 1th is for cameras that do
 EXIF_orientation_makes = [
     ['CANON', 'NIKON', 'OLYMPUS OPTICAL CO.,LTD'],
     ['CANON', 'KODAK', 'SONY', 'PENTAX', 'HTC']
                          ]
-EXIF_orientation_models  = [['Canon PowerShot S300', 'COOLPIX L18','C740UZ'], ['Canon EOS 450D','KODAK EASYSHARE M863 DIGITAL CAMERA','DSC-W80','PENTAX K10D', 'Android Dev Phone 1']] 
+EXIF_orientation_models = [['Canon PowerShot S300', 'COOLPIX L18', 'C740UZ'], ['Canon EOS 450D', 'KODAK EASYSHARE M863 DIGITAL CAMERA', 'DSC-W80', 'PENTAX K10D', 'Android Dev Phone 1']]
 # whether or not to trust the GPS info from the camera
-EXIF_gps_makes  = [['CANON','NIKON','OLYMPUS OPTICAL CO.,LTD','CANON','KODAK','SONY','PENTAX Corporation'],['HTC']] 
-EXIF_gps_models  = [['Canon PowerShot S300','COOLPIX L18','C740UZ','Canon EOS 450D','KODAK EASYSHARE M863 DIGITAL CAMERA','DSC-W80','PENTAX K10D'],['Android Dev Phone 1']] 
+EXIF_gps_makes = [['CANON', 'NIKON', 'OLYMPUS OPTICAL CO.,LTD', 'CANON', 'KODAK', 'SONY', 'PENTAX Corporation'], ['HTC']]
+EXIF_gps_models = [['Canon PowerShot S300', 'COOLPIX L18', 'C740UZ', 'Canon EOS 450D', 'KODAK EASYSHARE M863 DIGITAL CAMERA', 'DSC-W80', 'PENTAX K10D'], ['Android Dev Phone 1']]
 # camera models and thier owners, a list in order from most likely photographer (byline) to least likely, for each camera
 # TODO: this belongs in a database based on previously processed and bylined photos for an individual
 # DEPLOY: RELEASE: delete this before deployment or release
-model_byline = {'Canon PowerShot S300': ['Hobson', 'Larissa'], 'COOLPIX L18': ['Catherine', 'Larissa', 'Hobson'], 'C740UZ': ['Diane', 'Hobson', 'Larissa'], 'Canon EOS 450D': ['Larissa', 'Hobson', 'Diane'], 'KODAK EASYSHARE M863 DIGITAL CAMERA':['Hobson', 'Larissa'], 'DSC-W80': ['Hobson', 'Carlana', 'Dewey'], 'PENTAX K10D':['Ryan']}
+model_byline = {'Canon PowerShot S300': ['Hobson', 'Larissa'], 'COOLPIX L18': ['Catherine', 'Larissa', 'Hobson'], 'C740UZ': ['Diane', 'Hobson', 'Larissa'], 'Canon EOS 450D': ['Larissa', 'Hobson', 'Diane'], 'KODAK EASYSHARE M863 DIGITAL CAMERA': ['Hobson', 'Larissa'], 'DSC-W80': ['Hobson', 'Carlana', 'Dewey'], 'PENTAX K10D': ['Ryan']}
 
 
 # Desktop Background (DBG) paths
 # DBG_PATH = os.path.realpath(os.path.join(home, '.cache', 'gnome-control-center', 'backgrounds', 'desktop_background_image_copy.jpg'))
 DBG_PATH = os.path.realpath(os.path.join(home, 'Pictures', 'desktop_background_image_copy.jpg'))
+DBG_PATH = gtk.get_background_path() or DBG_PATH or 'desktop_background_image_copy.jpg'
 DBG_CATALOG_PATH = os.path.realpath(os.path.join(home, '.desktop_slide_show_catalog.txt'))
-DBG_PHOTOS_PATH = os.path.realpath(os.path.join(home, 'Desktop', 'Photos'))
-DBG_LOG_PATH = os.path.realpath(os.path.join(home, '.desktop_background_refresh_photo_debug.log'))
-DB_LOG_PATH = os.path.realpath(os.path.join(home, '.desktop_background_refresh_photo_catalog.log'))
-DBG_DB_PATH = os.path.realpath(os.path.join(DBG_PHOTOS_PATH, '.tagim_photo_sqlite_database.sqlite3'))
+
+DBG_PHOTOS_PATH = get_paths.normalize_path(os.path.join(home, 'Desktop', 'Photos'))
+DBG_LOG_PATH = get_paths.normalize_path(os.path.join(home, '.desktop_background_refresh_photo_debug.log'))
+DB_LOG_PATH = get_paths.normalize_path(os.path.join(home, '.desktop_background_refresh_photo_catalog.log'))
+DBG_DB_PATH = get_paths.normalize_path(os.path.join(DBG_PHOTOS_PATH, '.tagim_photo_sqlite_database.sqlite3'))
 # path to file used to set things like the unity boot up screen background
 UBUNTU_SPLASH_CONFIG_PATH = '/etc/lightdm/unity-greeter.conf'
 
@@ -232,48 +232,52 @@ def display_meta(im, stringifier=unicode_noerr):
     print '-'*(60+len(title)) 
     return keysets.values()
 
+
 def display_meta_str(im):
     return display_meta(im, stringifier=str)
+
 
 def display_meta_ascii(im):
     return display_meta(im, stringifier=str_noerr)
 
+
 def extract_tags(comment_string):
-    comment_string=comment_string.strip()
+    comment_string = comment_string.strip()
     # actHL: need an or in the re to capture 'Tags: ' field identifier as the only line in the comment and enforce '\nTags: ' identifier otherwise
-    mo=re.search(r'(.*)(\n*Tags:\s*)(.*)(\n*.*)', comment_string) #(1).split(' ') #,flags=re.IGNORECASE).group(1)
-    tags=[]
+    mo = re.search(r'(.*)(\n*Tags:\s*)(.*)(\n*.*)', comment_string)  # (1).split(' ') #,flags=re.IGNORECASE).group(1)
+    tags = []
     if not mo:
-        return (tags,comment_string)
-    groups=mo.groups()
-    if (len(groups)>2):
+        return (tags, comment_string)
+    groups = mo.groups()
+    if (len(groups) > 2):
         tags = groups[2]
         comment_without_tags = str(groups[0])
-        if (len(groups)>3):
+        if (len(groups) > 3):
             comment_without_tags += str(groups[3])
-    return (tags,comment_without_tags)
+    return (tags, comment_without_tags)
 
 
 def deg2dms(deg):
     deg = float(deg)
     assert isinstance(deg, float)
     neg = bool(deg < 0)
-    assert neg==True or neg==False
-    d = int(abs(deg)) # int is like floor() but towards zero for negative values (floor is towards negative infinity)
-    assert d >= 0 
+    assert neg is True or neg is False
+    d = int(abs(deg))  # int is like floor() but towards zero for negative values (floor is towards negative infinity)
+    assert d >= 0
     assert d <= abs(float(deg))
     assert isinstance(d, int)
-    m = int((float(deg) - d)*60)
-    assert isinstance(m,int)
-    s = ((float(deg) - d)*60 - m)*60
-    assert isinstance(s,float)
+    m = int((float(deg) - d) * 60)
+    assert isinstance(m, int)
+    s = ((float(deg) - d) * 60 - m) * 60
+    assert isinstance(s, float)
     if neg:
-        d=-d
-        m=-m
-        s=-s
+        d = -d
+        m = -m
+        s = -s
     # both deg and the d,m,s set should have the sign of the deg value originally input
-    assert abs( s/3600.0 + m/60.0 + d - deg) < 1e-3, "abs( (s)/3600.0 + {m}/60.0 + {d} + {deg}) = {val} !< 1e-3".format(s=s,m=m,d=d,deg=deg,val=abs(s/3600.0+m/60.0+d-deg))
-    return (d,m,s)
+    assert abs(s / 3600.0 + m / 60.0 + d - deg) < 1e-3, "abs( (s)/3600.0 + {m}/60.0 + {d} + {deg}) = {val} !< 1e-3".format(s=s, m=m, d=d, deg=deg, val=abs(s / 3600.0 + m / 60.0 + d - deg))
+    return (d, m, s)
+
 
 # WARN: seems to fail for some floats if MAX_RATIONALIZE... is too big (1e9),
 # perhaps due to the precision of the repeated multiplication by 10 which seems to destroy the last couple digits

@@ -8,12 +8,8 @@ Examples:
 True
 """
 
-# stdlib
-import os
-
 # tg
 import get_paths
-
 
 get_paths.stripit = True
 
@@ -22,32 +18,35 @@ from gi.repository import Gio  # , Gtk
 gsettings = Gio.Settings.new('org.gnome.desktop.background')
 
 
-def set_background_image_path(self, path):
+def set_background_image_path(path):
     """Set the desktop background image to the path specified"""
-    self.gsettings.set_string('picture-uri', "file://" + get_paths.make_uri(path))
+    gsettings.set_string('picture-uri', "file://" + get_paths.make_uri(path))
 
 
-def get_background_image_path(self, path):
+def get_background_image_path():
     """Retrieve the path of the desktop background image currently displayed
 
     >>> os.path.isfile(get_background_image_path())
     True"""
-    self.gsettings.get_string('picture-uri')
+    print gsettings.get_string('picture-uri')
+    return get_paths.normalize_path(gsettings.get_string('picture-uri'))
+get_background_path = get_background_image_path
+get_desktop_background_path = get_background_image_path
 
 
-def copy_over_background_image(self, path):
+def copy_over_background_image(path):
     """Copy an image file to the path used for the desktop background image"""
-    os.copy
-    self.gsettings.set_string('picture-uri', "file://" + path)
+    dest = get_background_image_path()
+    shutil.copy(path, dest)
 
 
-def image_path_from_gnome(self, uri=False):
+def image_path_from_gnome(uri=False):
     """Set the desktop background image to the path specified"""
     uri = gsettings.get_string('picture-uri')
     if uri:
         return uri
     from tagim.tg.get_paths import get_path
-    return get_path(uri, stripit=True, quote_char='')
+    return get_paths.get_path(uri, stripit=True, quote_char='')
 
 
 # def set_image_path(filename):
