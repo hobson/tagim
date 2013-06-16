@@ -1,0 +1,16 @@
+{
+	"folders":
+	[
+		{
+			"path": "/media/sda1/ssd/home/hobs/src/tagim"
+		},
+        {
+            "name": "installation",
+            //"file_exclude_patterns": ["{!bash.bashrc}"],
+            //"folder_exclude_patterns": ["*"],
+            "folder_include_patterns": ["init", "cron.weekly", "cron.daily", "cron.monthly"],
+            "file_include_patterns": ["bash.bashrc", "crontab", "init/looping-background-image-shuffler.conf", "cron.weekly/*", "cron.daily/*", "cron.monthly/*", "cron.hourly/*"],
+            "path": "/etc"
+        }
+	]
+}

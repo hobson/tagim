@@ -48,7 +48,7 @@ import tg.nlp as nlp
 import tg.gtkutil as gtk
 
 
-__version__ = '0.8'
+__version__ = '0.8.1'
 (user, home) = tg.user_home()
 
 # I can't imagine GPS positions ever needing to be recorded better
@@ -218,14 +218,14 @@ def str_noerr(s, errors='replace'):
     """
     try:
         if isinstance(s, unicode):
-            return repr(s)  , #.encode('UTF-8', errors=errors))
+            return repr(s)  # , .encode('UTF-8', errors=errors))
         else:
             return repr(s)
     except:
         print "Error in string conversion for tagim.str_noerr..."
 
 
-def display_meta(im, stringifier=unicode_noerr):
+def display_meta(im, stringifier=str_noerr):
     keysets = {'EXIF': im.exif_keys, 'IPTC': im.iptc_keys, ' XMP': im.xmp_keys}
     for name, keys in keysets.items():
         title = ' %s Data ' % name
@@ -234,8 +234,21 @@ def display_meta(im, stringifier=unicode_noerr):
             value = None
             try:
                 value = im[k].value
-            except:
+            except (pyexiv2.exif.ExifValueError, ValueError):
                 pass
+                # FIXME: `tagim -i '/media/sda1/ssd/home/hobs/Pictures/2013-03-11/2012-08-25_15-19-50_119.jpg'`
+                #   File "/usr/lib/python2.7/dist-packages/pyexiv2/exif.py", line 185, in _compute_value
+                #     self._value = self._convert_to_python(self._raw_value)
+                #   File "/usr/lib/python2.7/dist-packages/pyexiv2/exif.py", line 311, in _convert_to_python
+                #     raise ExifValueError(value, self.type)
+                #   pyexiv2.exif.ExifValueError: Invalid value for EXIF type [SShort]: []
+                # FIXME and this `tagim -i '/media/sda1/ssd/home/hobs/Pictures/2013-03-11/2012-08-25_15-19-50_119.jpg'`
+                #   File "/usr/lib/python2.7/dist-packages/pyexiv2/utils.py", line 151, in undefined_to_string
+                #     return ''.join(map(lambda x: chr(int(x)), undefined.rstrip().split(' ')))
+                #   File "/usr/lib/python2.7/dist-packages/pyexiv2/utils.py", line 151, in <lambda>
+                #     return ''.join(map(lambda x: chr(int(x)), undefined.rstrip().split(' ')))
+                # ValueError: invalid literal for int() with base 10: ''
+
             print '{0}: {1}'.format(stringifier(k), stringifier(value))
         print '-'*(60+len(title))
     print '-' * 30 + ' Comment ' + '-' * 30

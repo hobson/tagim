@@ -1,0 +1,16 @@
+CHANGES
+========
+
+0.8.1
+------
+
+* try-except-pass on pyexiv2.exif.ExifValueError('Invalid value for EXIF type [SShort]: []')
+* repr() on all print statements of EXIF values and keys (to be robust to abnormal encodings)
+* add pypi-compliant LICENSE, README, MANIFEST, CHANGES
+* pylint cleanup of tagim.py and portions of other files
+
+0.0.1
+------
+
+* Initial release 
+
