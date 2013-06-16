@@ -42,7 +42,7 @@ import pyexiv2
 import tg
 from tg.utils import *  # zero_if_none, sign
 import tg.get_paths
-from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN
+from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN, RE_TAGIM_TAG
 import tg.nlp as nlp
 
 import tg.gtkutil as gtk
@@ -71,7 +71,7 @@ EXIF_GPS_LABEL = [
     'TimeStamp', 'Satellites', 'Status', 'MeasureMode', 'DOP', 'SpeedRef', 'Speed', 'TrackRef',
     'Track', 'ImgDirectionRef', 'ImgDirection', 'MapDatum', 'DestLatitudeRef', 'DestLatitude',
     'DestLongitudeRef', 'DestLongitude', 'DestBearingRef', 'DestBearing', 'DestDistanceRef', 'DestDistance',
-                 ]
+    ]
 
 
 EXIF_GPS_REF_SUFFIX = 'Ref'
@@ -95,7 +95,7 @@ EXIF_GPS_POS_LABELS = [EXIF_GPS_LAT_LABEL, EXIF_GPS_LON_LABEL, EXIF_GPS_ALT_LABE
 # TODO: these belong in a public database and are probably unnecessary
 EXIF_orientation_name = [None, 'top left', 'top rght', 'btm rght', 'btm left', 'left top', 'rght top', 'rght btm', 'left btm']
 # degrees to rotate the image data before or after flipping
-EXIF_orientation_angle = [None,      0    ,     0     ,     180   ,    180    ,     90    ,     90    ,    270    ,     270   ]
+EXIF_orientation_angle =[None,      0    ,     0     ,     180   ,    180    ,     90    ,     90    ,    270    ,     270   ]
 # 0 = no flip/transpose required, 1 = flip horizontally, 2 = flip vertically
 EXIF_orientation_flip = [None,      0    ,     1     ,      0   ,      1     ,      2    ,      0    ,     2     ,      0    ]
 # 0th array is list of camera models that don't report orientation, 1th is for cameras that do
@@ -176,36 +176,36 @@ def rotate_image(filename, angle=0.0, resample='bicubic', expand=True, flip=0):
     im2.write()
     # these models require no adjustement of their orientation value, because it wasn't set in the first place, it should always be 1
     if im2['Exif.Image.Model'].value in EXIF_orientation_models[0]:
-        im2['Exif.Image.Orientation'] = 1 # assume that the rotated image is now upright, with top-left equal to row,column 0,0 
-        im2.write() # this saves the new orientation value, other EXIF tag changes have already been saved
-        warn("Camera model isn't one that normally sets the Exif.Image.Orientation appropriately (no orientation sensor?). Writing a 1 to this field, which assumes the newly rotated image is upright.") # ,UserWarning # ,RuntimeWarning)
+        im2['Exif.Image.Orientation'] = 1  # assume that the rotated image is now upright, with top-left equal to row,column 0,0
+        im2.write()  # this saves the new orientation value, other EXIF tag changes have already been saved
+        warn("Camera model isn't one that normally sets the Exif.Image.Orientation appropriately (no orientation sensor?). Writing a 1 to this field, which assumes the newly rotated image is upright.")  # ,UserWarning # ,RuntimeWarning)
     # These models need to have their orientation value properly set by the camera (along with image dimensions)
     # So they should display properly in programs that check this, even if the bitmap is not rotated.
     # But since we are rotating the bitmap, we need to rotate the Exif.Image.Orientation value as well.
     elif im2['Exif.Image.Model'].value in EXIF_orientation_models[1]:
-        if EXIF_orientation_angle[int(im2['Exif.Image.Orientation'].value)] not in [angle,angle-360,angle+360]:
-            warn("The Exif.Image.Orientation tag doesn't match the current rotation of the image, assuming you were trying to rotate it upright, so the Exif.Image.Orientation field was left unchanged." )  # ,UserWarning # ,RuntimeWarning)
-        if EXIF_orientation_flip[int(im2['Exif.Image.Orientation'].value)] != 0 :
-            hv_text = [ '','horizontally','vertically']
+        if EXIF_orientation_angle[int(im2['Exif.Image.Orientation'].value)] not in [angle, angle - 360, angle + 360]:
+            warn("The Exif.Image.Orientation tag doesn't match the current rotation of the image, assuming you were trying to rotate it upright, so the Exif.Image.Orientation field was left unchanged.")  # ,UserWarning # ,RuntimeWarning)
+        if EXIF_orientation_flip[int(im2['Exif.Image.Orientation'].value)] != 0:
+            hv_text = ['', 'horizontally', 'vertically']
             warn("The image needs to be flipped (mirrored) for the image orientation tag of " + hv_text[EXIF_orientation_flip[int(im2['Exif.Image.Orientation'])] % 2]
-               + "to match the EXIF orientation tag in the image to the actual image data arrangement which is presumed to be upright and normalized after your requested rotation." ) # ,UserWarning # ,RuntimeWarning)
-        im2['Exif.Image.Orientation'] = 1 # assume that the rotated image is now upright, with top-left equal to row,column 0,0 
+                 + "to match the EXIF orientation tag in the image to the actual image data arrangement which is presumed to be upright and normalized after your requested rotation.")  # ,UserWarning # ,RuntimeWarning)
+        im2['Exif.Image.Orientation'] = 1  # assume that the rotated image is now upright, with top-left equal to row,column 0,0
     else:
-        im2['Exif.Image.Orientation'] = 1 # assume that the rotated image is now upright, with top-left equal to row,column 0,0 
-        warn("Unknown camera model, so don't know whether it normally sets the Exif.Image.Orientation appropriately (no orientation sensor?). So writing a 1 to this field, which assumes the newly rotated image is upright.") # ,UserWarning # ,RuntimeWarning)
+        im2['Exif.Image.Orientation'] = 1  # assume that the rotated image is now upright, with top-left equal to row,column 0,0
+        warn("Unknown camera model, so don't know whether it normally sets the Exif.Image.Orientation appropriately (no orientation sensor?). So writing a 1 to this field, which assumes the newly rotated image is upright.")  # ,UserWarning # ,RuntimeWarning)
     im2.write()
 
 
 def unicode_noerr(s, errors='replace'):
     """
     Coerce input into a unicode (multibyte) string regardless of the type of input, without raising exceptions.
-    
+
     Assumes any single-byte str is ASCII or UTF-8.
     """
     if type(s) == unicode:
         return s
     elif type(s) == str:
-        return s.decode('UTF-8',errors=errors)
+        return s.decode('UTF-8', errors=errors)
     else:
         return unicode(s)
 
@@ -213,25 +213,34 @@ def unicode_noerr(s, errors='replace'):
 def str_noerr(s, errors='replace'):
     """
     Coerce input into an 8-bit/char string regardless of the type of input, without raising exceptions.
-    
+
     Uses UTF-8 encoding to encode multibyte unicode strings into single-byte strings.
     """
-    if type(s)==str: return s
-    elif type(s)==unicode: return s.encode('UTF-8',errors=errors)
-    else: return str(s)
+    try:
+        if isinstance(s, unicode):
+            return repr(s)  , #.encode('UTF-8', errors=errors))
+        else:
+            return repr(s)
+    except:
+        print "Error in string conversion for tagim.str_noerr..."
 
 
 def display_meta(im, stringifier=unicode_noerr):
-    keysets = {'EXIF':im.exif_keys, 'IPTC':im.iptc_keys, ' XMP':im.xmp_keys}
-    for name,keys in keysets.items():
-        title = ' %s Data '%name
+    keysets = {'EXIF': im.exif_keys, 'IPTC': im.iptc_keys, ' XMP': im.xmp_keys}
+    for name, keys in keysets.items():
+        title = ' %s Data ' % name
         print '-' * 30 + title + '-' * 30
         for k in keys:
-            print '{0}: {1}'.format(stringifier(k),stringifier(im[k].value))
-        print '-'*(60+len(title)) 
+            value = None
+            try:
+                value = im[k].value
+            except:
+                pass
+            print '{0}: {1}'.format(stringifier(k), stringifier(value))
+        print '-'*(60+len(title))
     print '-' * 30 + ' Comment ' + '-' * 30
     print '{0}'.format(stringifier(im.comment))
-    print '-'*(60+len(title)) 
+    print '-'*(60+len(title))
     return keysets.values()
 
 
@@ -246,7 +255,7 @@ def display_meta_ascii(im):
 def extract_tags(comment_string):
     comment_string = comment_string.strip()
     # actHL: need an or in the re to capture 'Tags: ' field identifier as the only line in the comment and enforce '\nTags: ' identifier otherwise
-    mo = re.search(r'(.*)(\n*Tags:\s*)(.*)(\n*.*)', comment_string)  # (1).split(' ') #,flags=re.IGNORECASE).group(1)
+    mo = RE_TAGIM_TAG.search(comment_string)  # (1).split(' ') #,flags=re.IGNORECASE).group(1)
     tags = []
     if not mo:
         return (tags, comment_string)
@@ -288,47 +297,47 @@ def rationalize_float(f):
     num = f
     sgn = sign(f)
     num *= sgn
-    assert num>=0, "{num}>=0".format(num=num)
-    if (f and (f-0.0)<MIN_RATIONALIZE_FLOAT):
-        warn("Float value ("+str(f)+") close to zero so rounding it to exactly zero, for simplicity and equality comparison.")
-        return(0,1)
+    assert num >= 0, "{num}>=0".format(num=num)
+    if (f and (f - 0.0) < MIN_RATIONALIZE_FLOAT):
+        warn("Float value (" + str(f) + ") close to zero so rounding it to exactly zero, for simplicity and equality comparison.")
+        return(0, 1)
     # *= 10 makes the fraction easier to read in decimal, but introduces roundoff error due to the base 2 floating point math in the cpu
-    while (abs(num-round(num))>(1.1/MAX_RATIONALIZE_DENOMINATOR)) and (den<.9*MAX_RATIONALIZE_DENOMINATOR):
+    while (abs(num-round(num)) > (1.1/MAX_RATIONALIZE_DENOMINATOR)) and (den < .9 * MAX_RATIONALIZE_DENOMINATOR):
         num *= RATIONALIZE_DENOMINATOR_FACTOR
         den *= RATIONALIZE_DENOMINATOR_FACTOR
     num = long(round(num))
-    assert num>=0, "{num}>=0".format(num=num)
+    assert num >= 0, "{num}>=0".format(num=num)
     den = long(round(den))
-    assert den>0, "{den}>0".format(den=den)
+    assert den > 0, "{den}>0".format(den=den)
     num *= sgn
     # assert less than 1 part per million error when converted back to a float from a rational pair
-    if abs(f)>0:
-        assert abs(f-float(num)/den)/abs(f)<=1e-6, '{val} = abs({f} - float({num})/{den})/{f} !<= 1e-6'.format(
-                    f=f, num=num, den=den, val=abs(f - float(num)/den)/abs(f) )   
+    if abs(f) > 0:
+        assert abs(f-float(num)/den)/abs(f) <= 1e-6, '{val} = abs({f} - float({num})/{den})/{f} !<= 1e-6'.format(
+            f=f, num=num, den=den, val=abs(f - float(num) / den) / abs(f))
     # assert less than 2 parts of the MAX_RATIONALIZE_DENOMINATOR
-        assert abs(f-float(num)/den)/abs(f)<=2.0/MAX_RATIONALIZE_DENOMINATOR, "{val} = abs({f} - {num}/{den})/{f} !<= 2/{max_den}".format(
-                    f=f, num=num, den=den, val=abs(f - num/den)/abs(f), max_den = MAX_RATIONALIZE_DENOMINATOR )
-    return (int(round(num)),int(round(den)))
+        assert abs(f - float(num) / den) / abs(f) <= 2. / MAX_RATIONALIZE_DENOMINATOR, "{val} = abs({f} - {num}/{den})/{f} !<= 2/{max_den}".format(
+            f=f, num=num, den=den, val=abs(f - num / den) / abs(f), max_den=MAX_RATIONALIZE_DENOMINATOR)
+    return (int(round(num)), int(round(den)))
 
 
 def exif_gps_rationalize(deg):
-    isneg = bool(deg<0)
+    isneg = bool(deg < 0)
     if isneg:
         deg *= -1.0
-    assert deg==abs(deg), "{deg}==abs({deg})".format(deg=deg)
-    (d,m,s)=deg2dms(deg)
-    assert d==int(d), "{d}==int({d})".format(d=d)
-    assert m==int(m), "{m}==int({m})".format(m=m)
+    assert deg == abs(deg), "{deg}==abs({deg})".format(deg=deg)
+    (d, m, s) = deg2dms(deg)
+    assert d == int(d), "{d}==int({d})".format(d=d)
+    assert m == int(m), "{m}==int({m})".format(m=m)
     #print 'dms =',str(d),str(m),str(s)
     #import pyexiv2.utils
-    #r = pyexiv2.utils.make_fraction(str(round(s,MAX_RATIONALIZE_DIGITS))) 
+    #r = pyexiv2.utils.make_fraction(str(round(s,MAX_RATIONALIZE_DIGITS)))
     # pyexiv2.utils.Rational requires the decimal to already be split into numerator and denomenator! It can't deal with floats or strings of floats!
     #import fractions
     #r = fractions.Fraction(str(round(s,MAX_RATIONALIZE_DIGITS)))
     #print r
     (s_num,s_den)= rationalize_float(s)
     #print s_num,s_den
-    return  ("{d}/1 {m}/1 {s}/{den}".format(d=int(round(d)),m=int(round(m)),s=int(round(s_num)),den=s_den), isneg)
+    return ("{d}/1 {m}/1 {s}/{den}".format(d=int(round(d)), m=int(round(m)), s=int(round(s_num)), den=s_den), isneg)
 
 
 def location2latlon(location_string):
@@ -341,29 +350,29 @@ def location2latlon(location_string):
         lon = p.longitude
         # TODO: need to trigger these warnings or messages only when "verbose" or "debug" global option is set
         print "geopy module point.Point() read the gps string, but is it valid?"
-        print '('+str(lat)+','+str(lon)+') '+' == '+'"'+location_string+'" ?'
+        print '(' + str(lat) + ',' + str(lon) + ') ' + ' == ' + '"' + location_string + '" ?'
     except ValueError:
         if mo: # and (mo.group('latitude_degrees' ) or mo.group('longitude_degrees' )):
-            lat = (float(zero_if_none(mo.group('latitude_degrees' )))
-                 + float(zero_if_none(mo.group('latitude_arcminutes' )))/60.0
-                 + float(zero_if_none(mo.group('latitude_arcseconds' )))/3600.0)
-            lon = (float(zero_if_none(mo.group('longitude_degrees'))) 
-                 + float(zero_if_none(mo.group('longitude_arcminutes')))/60.0 
-                 + float(zero_if_none(mo.group('longitude_arcseconds')))/3600.0)
+            lat = (float(zero_if_none(mo.group('latitude_degrees')))
+                 + float(zero_if_none(mo.group('latitude_arcminutes'))) / 60.0
+                 + float(zero_if_none(mo.group('latitude_arcseconds'))) / 3600.0)
+            lon = (float(zero_if_none(mo.group('longitude_degrees')))
+                 + float(zero_if_none(mo.group('longitude_arcminutes'))) / 60.0
+                 + float(zero_if_none(mo.group('longitude_arcseconds'))) / 3600.0)
             # TODO: altitude
             print "geopy.point.Point() unable to read gps string, but tg.tagim got ..."
             print '('+str(lat)+','+str(lon)+') '+' from the string '+'"'+location_string+'" ?'
             print mo.groupdict()
         else:
-            return (None,None,None)
-    return (lat,lon,alt)
+            return (None, None, None)
+    return (lat, lon, alt)
 
 
 def latlon2exif(lat,lon,alt=0.0):
     # Need to rationalize them and get rid of sign (recording the sign separately)
     (latrat, latneg) = exif_gps_rationalize(lat)
     (lonrat, lonneg) = exif_gps_rationalize(lon)
-    (altrat, altneg) = exif_gps_rationalize(0.0) # TODO: process altitude
+    (altrat, altneg) = exif_gps_rationalize(0.0)  # TODO: process altitude
     # Now need to incorporate the sign information into the direction reference strings (N/S and E/W)
     latref = 'N'
     if latneg:
@@ -371,17 +380,17 @@ def latlon2exif(lat,lon,alt=0.0):
     lonref = 'E'
     if lonneg:
         lonref = 'W'
-    altref = 1 # above sealevel
+    altref = 1  # above sealevel
     if altneg:
-        altref = 0 # below sealevel (negative)
+        altref = 0  # below sealevel (negative)
     # Return a dictionary or hash with the appropriate EXIF tag keys and values (integer fractions of deg, min, s) for GPS positions 
-    return	{
-                EXIF_GPS_LAT_LABEL: latrat, 
-                EXIF_GPS_LON_LABEL: lonrat, 
-                EXIF_GPS_ALT_LABEL: altrat,
-                EXIF_GPS_LAT_LABEL+EXIF_GPS_REF_SUFFIX: latref,
-                EXIF_GPS_LON_LABEL+EXIF_GPS_REF_SUFFIX: lonref,
-                EXIF_GPS_ALT_LABEL+EXIF_GPS_REF_SUFFIX: altref,
+    return {
+        EXIF_GPS_LAT_LABEL: latrat, 
+        EXIF_GPS_LON_LABEL: lonrat, 
+        EXIF_GPS_ALT_LABEL: altrat,
+        EXIF_GPS_LAT_LABEL+EXIF_GPS_REF_SUFFIX: latref,
+        EXIF_GPS_LON_LABEL+EXIF_GPS_REF_SUFFIX: lonref,
+        EXIF_GPS_ALT_LABEL+EXIF_GPS_REF_SUFFIX: altref,
             }
 
 
@@ -580,7 +589,7 @@ def test_gps():
         assert lon2 >= -180.0
         assert abs(lat - lat2) < 1e-6, "lat: abs({lat}-{lat2})<1e-6".format(lat=lat, lat2=lat2)
         assert abs(lon - lon2) < 1e-6, "lon: abs(lon-lon2)<1e-6".format(lon=lon, lon2=lon2)
-        assert alt1 == alt2 
+        assert alt1 == alt2
         #print sassert
     test_date_s = [
         '2011/02/14 12:06:38',
@@ -619,14 +628,12 @@ def shuffle_background_photo(image=''):
     status = True  # status = 0 when successful shell command is run
     while status or not RANDPHOTOPATH or not os.path.isfile(RANDPHOTOPATH):
         # TODO use tg.utils.replace_in_file instead of sed:
-        print status, RANDPHOTOPATH
         cmd = 'sed -n {0}p "{1}"'.format(str(random.randint(1, int(PHOTOCOUNT))), DBG_CATALOG_PATH)
-        print cmd
         status, RANDPHOTOPATH = commands.getstatusoutput(cmd)
     shutil.copy(RANDPHOTOPATH, DBG_PATH)
-    print >> dbg_log_file, "  Finished copying over the desktop background image file with the image at:"
+    dbg_log_file.write("  Finished copying over the desktop background image file with the image at:\n")
     #+os.linesep
-    print >> dbg_log_file, RANDPHOTOPATH
+    dbg_log_file.write(RANDPHOTOPATH + '\n')
     dbg_log_file.close()
     db_log_file.write(str(RANDPHOTOPATH)+'\n')
     db_log_file.close()
