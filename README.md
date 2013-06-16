@@ -35,26 +35,23 @@ Features
 TODO
 -----
 
-* Top Priority
-    * Persistent settings
-        - Threshold values for tags like "public" or "interest" that prohibit or allow upload to blog or web2.0 share
-        - default tag values for all images (if empty and not specified otherwise) 
-    * Database (sqlite): to store image catalog and keep track of which files have been shown
-    * Database (sqlite?): to index text in tags and comments, with queries implementable directly in tagim
-
-* Backlog
-    * Automatically augment the filename of photos that have non-human-readable strings with natural language snippet
-        - High priority for tags like location and people names and dates and unusual/rare words
-        - Secondary priority from abbreviate strings from tags and comments
-    * Post blog article (e-mail default address in secure settings)
-    * web2.0 share to Google+, Facebook, and other APIs
-    * Quiet output of filename (needs cleanup)
-    * Double-quiet to output only fatal errors 
-    * Tripple-quiet to only output fatal errors to a log file
-    * Chron job or service to update catalog ever few times an image is shuffled across the background
-    * Secure settings (env variables) or OS key-chain for e-mail & blog and web2.0 credentials
-    * Trigger indexing of photos based on file system monitor (OS-depedent)
-    * Database: which files have been shown, index tags and comments, query language output (directly through tagim?)
-    * Allow user to set persistent thresholds for values or tags like "public" or "interest" for auto-upload to blog or web2.0 share
-    * Automatically modify the filename of numbered photos with natural language snippet (from tags, comments)
-        + High priority for tags like location and people names and dates and unusual/rare words
+    * Top Priority
+        * Persistent settings
+            - Threshold values for tags like "public" or "interest" that prohibit or allow upload to blog or web2.0 share
+            - default tag values for all images (if empty and not specified otherwise) 
+        * Database (sqlite): to store image catalog and keep track of which files have been shown
+        * Database (sqlite?): to index text in tags and comments, with queries implementable directly in tagim
+    * Backlog
+        * Automatically augment the filename of photos that have non-human-readable strings with natural language snippet
+            - High priority for tags like location and people names and dates and unusual/rare words
+            - Secondary priority from abbreviate strings from tags and comments
+        * Post blog article (e-mail default address in secure settings)
+        * web2.0 share to Google+, Facebook, and other APIs
+        * Quiet output of filename (needs cleanup)
+        * Double-quiet to output only fatal errors 
+        * Tripple-quiet to only output fatal errors to a log file
+        * Chron job or service to update catalog ever few times an image is shuffled across the background
+        * Secure settings (env variables) or OS key-chain for e-mail & blog and web2.0 credentials
+        * Trigger indexing of photos based on file system monitor (OS-depedent)
+        * Database: which files have been shown, index tags and comments, query language output (directly through tagim?)
+        * Allow user to set persistent thresholds for values or tags like "public" or "interest" for auto-upload to blog or web2.0 share
