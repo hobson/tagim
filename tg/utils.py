@@ -14,7 +14,8 @@ import os
 import re
 import sys
 from warnings import warn
-import collections # .Iterable
+import collections  # .Iterable
+
 
 # TODO: don't read the whole file into memory and write.
 # TODO: DRY-up using replace_in_file
@@ -37,14 +38,15 @@ def multiline_replace_in_file(search_pattern, replacement_pattern, fname):
         s = f.read()
         print s
     if not re.search(search_pattern, s, re.MULTILINE):
-        return 
+        return
     s = re.sub(search_pattern, replacement_pattern, s, re.MULTILINE)
     print s
     with open(fname,'w') as f:
         f.write(s)
 
-TEXTCHARS = ''.join(map(chr, [7,8,9,10,12,13,27] + range(0x20, 0x100)))
+TEXTCHARS = ''.join(map(chr, [7, 8, 9, 10, 12, 13, 27] + range(0x20, 0x100)))
 is_binary_string = lambda bytes: bool(bytes.translate(None, TEXTCHARS))
+
 
 def replace_in_file(search_pattern, replacement_pattern, fname,
                     verbose=True, interactive=True, tmp_file_suffix=".tg.utils.replace_in_file.tmp", dry_run=False,binary=False):
@@ -116,6 +118,7 @@ def replace_in_file(search_pattern, replacement_pattern, fname,
     if found:
         os.rename(out_fname, fname)
 
+
 # http://stackoverflow.com/questions/434597/open-document-with-default-application-in-python
 def start(filepath):
     """NOT IMPLEMENTED, see launch() below"""
@@ -135,6 +138,7 @@ def start(filepath):
     else:
         # registered names in 2.72: ['nt','posix','os2','ce','java','riscos'], 3.2 adds 'mac' and deleetes riscos
         pass
+
 
 # proposed for Python 3.3 with help from Python development team
 def launch(path, operation='open', gui=True, fallback=True):
@@ -173,17 +177,17 @@ def launch(path, operation='open', gui=True, fallback=True):
     >>> import os.path
     >>> launch(os.path.realpath(__file__),'open')
     """
-    
+
     # FIXME: Is OSError(errno.ENOSYS) the right error to raise?
     # TODO: Utilize best-practices from Mercurial project:
     #    http://selenic.com/repo/hg-stable/file/2770d03ae49f/mercurial/ui.py
     #    http://selenic.com/repo/hg-stable/file/2770d03ae49f/mercurial/util.py
-    
+
     import sys, os, subprocess, errno
 
     # Ensure cross-platform path (Windows-friendly)
     path = os.path.normpath(path)
-    
+
     # Guess user's desired operation (Windows verb)
     operation = operation or 'open'
     # Force case and padding to comply with Windows verb specification
@@ -245,11 +249,13 @@ def locate(pattern, basepath='', regex=False, matchpath=False):
         use posix 'slocate --existing' command if availble for faster results
         update locate or slocate database if it's stale
     """
-    import os, fnmatch, re
+    import os
+    import fnmatch
+    import re
     basepath = basepath if isinstance(basepath,str) else ''
     basepath = basepath or ''
     # no need to assign to os.curdir or Env.CWD because os.path.abspath('') does so by default
-    basepath = basepath if (not basepath=='.' and not basepath=='.'+os.path.sep) else '' #os.curdir
+    basepath = basepath if (not basepath=='.' and not basepath=='.'+os.path.sep) else ''  # os.curdir
     if basepath == os.path.sep or basepath=='/':
         basepath = os.path.sep
     basepath = os.path.abspath(os.path.normpath(basepath))
@@ -259,12 +265,12 @@ def locate(pattern, basepath='', regex=False, matchpath=False):
     if not matcher_arg:
         raise ValueError("Can't match a file unless you provide a pattern for locate() to look for!")
     if regex:
-        rx = re.compile(pattern) # if weren't using a compiled regex then code less complicated but less efficient
+        rx = re.compile(pattern)  # if weren't using a compiled regex then code less complicated but less efficient
         matcher = rx.search
         matcher_arg = 0 # for re.search() this is the position in the string to start the search
     for path, dirs, files in os.walk(os.path.abspath(basepath)):
-        files = files if not matchpath else [os.path.join(path,fn) for fn in files]
-        print repr(files)
+        files = files if not matchpath else [os.path.join(path, fn) for fn in files]
+        # print repr(files)
         fullpaths=[]
         for fp in files:
             if matcher(fp, matcher_arg):

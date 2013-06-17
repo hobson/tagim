@@ -396,42 +396,42 @@ def latlon2exif(lat,lon,alt=0.0):
     altref = 1  # above sealevel
     if altneg:
         altref = 0  # below sealevel (negative)
-    # Return a dictionary or hash with the appropriate EXIF tag keys and values (integer fractions of deg, min, s) for GPS positions 
+    # Return a dictionary (hash table) with the appropriate EXIF tag keys and values (integer fractions of deg, min, s) for GPS positions
     return {
-        EXIF_GPS_LAT_LABEL: latrat, 
-        EXIF_GPS_LON_LABEL: lonrat, 
+        EXIF_GPS_LAT_LABEL: latrat,
+        EXIF_GPS_LON_LABEL: lonrat,
         EXIF_GPS_ALT_LABEL: altrat,
         EXIF_GPS_LAT_LABEL+EXIF_GPS_REF_SUFFIX: latref,
         EXIF_GPS_LON_LABEL+EXIF_GPS_REF_SUFFIX: lonref,
         EXIF_GPS_ALT_LABEL+EXIF_GPS_REF_SUFFIX: altref,
-            }
+        }
 
 
 def deg2dm(decimal_degrees):
     """
     Convert decimal degrees to degrees, minutes, sign
     """
-    sgn = copysign(1.,decimal_degrees)
+    sgn = copysign(1., decimal_degrees)
     degrees = int(abs(decimal_degrees))
     decmial_minutes = abs(decimal_degrees)-degrees
     return (degrees, minutes, sgn)
 
 
-def latlon2pyexiv2(lat_deg,lon_deg):
-    (d1,m1,sgn1) = deg2dm(lat_deg)
+def latlon2pyexiv2(lat_deg, lon_deg):
+    (d1, m1, sgn1) = deg2dm(lat_deg)
     if sgn1:
         sgn1 = 0
     else:
         sgn1 = -1
-    (d2,m2,sgn2) = deg2dm(lon_deg)
+    (d2, m2, sgn2) = deg2dm(lon_deg)
     if sgn2:
         sgn2 = 0
     else:
         sgn2 = -1
     # 'DDD,MM.mmk' (k is N/S or E/W
-    lat = pyexiv2.GPSCoordinate.from_string('{0:2d},{1:2.4d}{2:1s}'.format(d1,m1,chr(sgn1*(ord('N')-ord('S'))+ord('N'))))
-    lon = pyexiv2.GPSCoordinate.from_string('{0:2d},{1:2.4d}{2:1s}'.format(d2,m2,chr(sgn2*(ord('E')-ord('W'))+ord('E'))))
-    return (lat,lon)
+    lat = pyexiv2.GPSCoordinate.from_string('{0:2d},{1:2.4d}{2:1s}'.format(d1, m1, chr(sgn1*(ord('N')-ord('S'))+ord('N'))))
+    lon = pyexiv2.GPSCoordinate.from_string('{0:2d},{1:2.4d}{2:1s}'.format(d2, m2, chr(sgn2*(ord('E')-ord('W'))+ord('E'))))
+    return (lat, lon)
 
 
 def set_gps_location(exiv_image, lat, lng):
@@ -453,11 +453,11 @@ def set_gps_location(exiv_image, lat, lng):
     lng_deg = to_deg(lng, ["W", "E"])
 
     # convert decimal coordinates into degrees, munutes and seconds
-    exiv_lat = (pyexiv2.Rational(lat_deg[0]*60+lat_deg[1],60),pyexiv2.Rational(lat_deg[2]*100,6000), pyexiv2.Rational(0, 1))
-    exiv_lng = (pyexiv2.Rational(lng_deg[0]*60+lng_deg[1],60),pyexiv2.Rational(lng_deg[2]*100,6000), pyexiv2.Rational(0, 1))
+    exiv_lat = (pyexiv2.Rational(lat_deg[0] * 60 + lat_deg[1], 60), pyexiv2.Rational(lat_deg[2] * 100, 6000), pyexiv2.Rational(0, 1))
+    exiv_lng = (pyexiv2.Rational(lng_deg[0] * 60 + lng_deg[1], 60), pyexiv2.Rational(lng_deg[2] * 100, 6000), pyexiv2.Rational(0, 1))
 
     exiv_image = pyexiv2.Image(file_name)
-    exif_keys = exiv_image.exifKeys() 
+    #exif_keys = exiv_image.exifKeys()
 
     exiv_image["Exif.GPSInfo.GPSLatitude"] = exiv_lat
     exiv_image["Exif.GPSInfo.GPSLatitudeRef"] = lat_deg[3]
@@ -470,47 +470,47 @@ def set_gps_location(exiv_image, lat, lng):
 
 # create a dictionary of the EXIF labels and strings (fractions of integers in d/d m/m s/s format)
 def exif_gps_strings(location_string):
-    loctuple=location2latlon(location_string)
-    if not loctuple or ( not loctuple[0] and not loctuple[1] and not loctuple[2] ):
+    loctuple = location2latlon(location_string)
+    if not loctuple or (not loctuple[0] and not loctuple[1] and not loctuple[2]):
         return {}
-    return latlon2exif(loctuple[0],loctuple[1],loctuple[2])
+    return latlon2exif(loctuple[0], loctuple[1], loctuple[2])
 
 
 def exif_unrationalize_gps(gps_exif_dict):
-    # turn an exif representation of a gps position into a pair of floats for lat lon 
+    # turn an exif representation of a gps position into a pair of floats for lat lon
     #   gps_exif_dict = {lat_label: latrat, lon_label: lonrat, lat_label+ref_suffix: latref, lon_label+ref_suffix: lonref}, with floats expressed as fractions in deg, min, sec
     # result = (lat,lon)
     if not gps_exif_dict:
         return {}
     values = {}
-    for i,label in enumerate(EXIF_GPS_POS_LABELS):
+    for i, label in enumerate(EXIF_GPS_POS_LABELS):
         values[label] = 0.0
         # WARN: str.split() with multiple delimiters NEVER works!!!!
         # v_array = gps_exif_dict[label].split(SPACE+'/')
         if not label in gps_exif_dict:
             continue
-        v_array = re.findall(r'[-+0-9]+',gps_exif_dict[label])
-        print str(v_array)
-        assert 6==len(v_array), "6=={lenv}==len({v_array})".format(lenv=len(v_array),v_array=v_array)
+        v_array = re.findall(r'[-+0-9]+', gps_exif_dict[label])
+        #print str(v_array)
+        assert 6 == len(v_array), "6=={lenv}==len({v_array})".format(lenv=len(v_array), v_array=v_array)
         odd = 1.0
         multiplier = 1.0
         f = 1.0
         for v in v_array:
 #			print '---------------------'
 #			print 'v,numerator,multiplier,toggle,adder,value',v,f,multiplier,odd,f,'/',float(v),'/',multiplier,values[label]
-            if odd>0:
+            if odd > 0:
                 f = float(v)
             else:
-                assert float(v)>0, "v={v}>0".format(v=v)
+                assert float(v) > 0, "v={v}>0".format(v=v)
                 # TODO: does this just duplicate the assert statement with more verbosity?
                 if float(v) <= 0:
                     raise ValueError("An EXIF Rational type string should never have a negative or zero denominator. Erroneous rational string was '"
-                                     +gps_exif_dict[label]+"', which parsed into these values of alternating numerator and denomenator'"+' '.join(v_array)
-                                     +"', which gives the bad denomenator value of '"+v+"'.")
-                values[label] += (f/float(v))/multiplier
+                                     + gps_exif_dict[label] + "', which parsed into these values of alternating numerator and denomenator'"+' '.join(v_array)
+                                     + "', which gives the bad denomenator value of '" + v + "'.")
+                values[label] += (f / float(v)) / multiplier
                 multiplier *= 60.0
             odd *= -1
-            print 'v,numerator,multiplier,toggle,adder,value',v,f,multiplier,odd,f,'/',float(v),'/',multiplier,values[label]
+            print 'v,numerator,multiplier,toggle,adder,value', v, f, multiplier, odd, f, '/', float(v), '/', multiplier, values[label]
 #			print '---------------------'
     return(values)
 
@@ -519,7 +519,7 @@ def parse_date(s):
     from datetime import datetime
     from math import floor
 
-    mo=DATETIME_PATTERN.match(s)
+    mo = DATETIME_PATTERN.match(s)
     if mo:
         y = zero_if_none(mo.group('y'))
         if len(y) == 2:
@@ -536,8 +536,8 @@ def parse_date(s):
         m = int(zero_if_none(mo.group('m')))
         s_f = float(zero_if_none(mo.group('s')))
         s = int(floor(s_f))
-        us = int((s_f-s)*1000000.0)
-        return datetime(y,mon,d,h,m,s,us)
+        us = int((s_f - s) * 1000000.0)
+        return datetime(y, mon, d, h, m, s, us)
     else:
         raise ValueError("Date time string not recognizeable or not within a valid date range (2199 BC to 2199 AD): %s" % s)
 #	return date.datetime.strptime(s,"%y %m %d %H:%M:%S")
@@ -545,14 +545,14 @@ def parse_date(s):
 
 def exif2latlon(exif_dict):
     if not exif_dict:
-        return (None,None,None)
+        return (None, None, None)
     values = exif_unrationalize_gps(exif_dict)
     if not values:
-        return (None,None,None)
+        return (None, None, None)
     for i in range(3):
         if not EXIF_GPS_POS_LABELS[0] in values:
-            return (None,None,None)
-    return (values[EXIF_GPS_POS_LABELS[0]],values[EXIF_GPS_POS_LABELS[1]],values[EXIF_GPS_POS_LABELS[2]])
+            return (None, None, None)
+    return (values[EXIF_GPS_POS_LABELS[0]], values[EXIF_GPS_POS_LABELS[1]], values[EXIF_GPS_POS_LABELS[2]])
 
 
 def test_gps():
@@ -565,26 +565,26 @@ def test_gps():
         "06 57.679'S 117 02.624'W",
         '06 deg 57.679 min n 117 deg 02.624min w',
         '08 deg 54.776 S 140 deg 06.285 W',
-        "8 deg 56.725' S 140 deg 10.063' W", # Danial's bay? Nuku Hiva island near the mouth of the creek from the "cascades".
+        "8 deg 56.725' S 140 deg 10.063' W",  # Danial's bay? Nuku Hiva island near the mouth of the creek from the "cascades".
     ]
     for t in test_gps_s:
         print "gps string: '{0}' ==".format(t)
-        (lat,lon,alt)=location2latlon(t)
-        r = latlon2exif(lat,lon,alt)
+        (lat, lon, alt) = location2latlon(t)
+        r = latlon2exif(lat, lon, alt)
         if not r:
             raise RuntimeError("Unable to process the GPS location string: "+t)
             break
-        for k,v in r.items():
-            print "    {k} => '{v}'".format(k=k,v=v)
+        for k, v in r.items():
+            print "    {k} => '{v}'".format(k=k, v=v)
         # {lat_label: latrat, lon_label: lonrat, lat_label+ref_suffix: latref, lon_label+ref_suffix: lonref}
         #print '----------- what labels are missing -----------'
         #print r
-        v_dict = exif_unrationalize_gps(r) # 3 floats in a dictionary to replace the 3 fractions that were there before
+        # v_dict = exif_unrationalize_gps(r)  # 3 floats in a dictionary to replace the 3 fractions that were there before
         # take the float values and construct a string and reconvert to fractions and see that it's still the same set of strings
-        #print r 
-        #print ' ?== ' 
+        #print r
+        #print ' ?== '
         # WARN: this doesn't work, need to put together a full-circle assert/test
-        (lat1, lon1, alt1) = exif2latlon(r) # WARN sign is corrupted by this point
+        (lat1, lon1, alt1) = exif2latlon(r)  # WARN sign is corrupted by this point
         assert lat1 <=   90.0
         assert lat1 >=  -90.0
         assert lon1 <=  180.0
@@ -613,7 +613,7 @@ def test_gps():
     for t in test_date_s:
         print "date string: '{0}' ---------------------------".format(t)
         r = parse_date(t)
-        print "  dateime: "+str(r)
+        print "  dateime: " + str(r)
 
 
 # TODO: gnome gconf settings don't match the path to DBG_PATH, but this works anyway, why?
@@ -675,8 +675,7 @@ def set_splash_background(image='', ubuntu_splash_conf=UBUNTU_SPLASH_CONFIG_PATH
     if image and os.path.isfile(image):
         # read file into string?
         EOL = tg.regex_patterns.UTIL_PATTERNS['EOL']
-        patt = r'(?m)(?P<pretext>'+EOL+r'[[]greeter[]](?:.*'+EOL+r')+\s*background\s*=\s*)' \
-               + tg.regex_patterns.PATH_PATTERNS['LIN']
+        patt = r'(?m)(?P<pretext>' + EOL + r'[[]greeter[]](?:.*' + EOL + r')+\s*background\s*=\s*)' + tg.regex_patterns.PATH_PATTERNS['LIN']
         # substitute patten with image path
         tg.utils.multiline_replace_in_file(patt, r"""(?P=pretext)'""" + image + "'", ubuntu_splash_conf)
         # re.sub = sub(patt, repl, string, count=0, flags=0)

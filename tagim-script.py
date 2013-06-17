@@ -36,7 +36,7 @@ import os
 import pyexiv2
 import sys
 
-version = '0.8'
+__version__ = '0.8.1'
 
 # TODO: 'optparse.OptionParser' deprecated, refactor to 'argparse.ArgumentParser' and do something about reverse compatability
 #p = argparse.ArgumentParser(
@@ -226,7 +226,6 @@ if o.shuffle:
     #os.system(cl)
     o.image_filename = tagim.shuffle_background_photo(o.image_filename)
 
-
 sequencenum = None
 if not o.image_filename:
     if o.background:
@@ -242,14 +241,12 @@ else:
 
 if isinstance(sequencenum, int) and not os.path.isfile(o.image_filename):
     o.image_filename = tagim.image_path_from_log(sequencenum)
-print o.image_filename
 if not os.path.isfile(o.image_filename):
     o.image_filename = get_background_path()
-print o.image_filename
 if not os.path.isfile(o.image_filename):
     raise IOError("Error: Couldn't find the image file at '{0}'".format(o.image_filename))
-else:
-    print repr(o.image_filename)
+# else:
+#     print repr(o.image_filename)
 
 if o.verbose:
     print "Image file name: '{0}'".format(o.image_filename)
@@ -261,8 +258,8 @@ if o.angle or int(o.flip):
         o.flip = 0
     im = tagim.rotate_image(o.image_filename, angle=round(float(o.angle), 2), flip=int(o.flip))
     p = tagim.image_path_from_log()
-    print 'path tagim.image_path(): ' + p + "\n"
-    print 'path o.image_filename: ' + o.image_filename + "\n"
+    #print 'path tagim.image_path(): ' + p + "\n"
+    #print 'path o.image_filename: ' + o.image_filename + "\n"
     if o.image_filename == p:
         tagim.shuffle_background_photo(o.image_filename)  # update the desktop image to the file that was rotated
 
@@ -328,21 +325,21 @@ if len(o.tag) > 0:  # TODO: remove this unnecessary check
 if o.comment_field_name and o.comment_field_name in im.keys():
     im[o.comment_field_name].value = new_comment
 else:
-    im.comment=new_comment
+    im.comment = new_comment
 
 if o.gps:
-    if o.overwritegps or (not o.append) or (not (lat_label in exif)) or (len(im[lat_label].value)<2):
-        d=tagim.exif_gps_strings(o.gps) # produce a dictionary of key/values for gps location string
+    if o.overwritegps or (not o.append) or (not (lat_label in exif)) or (len(im[lat_label].value) < 2):
+        d = tagim.exif_gps_strings(o.gps)  # produce a dictionary of key/values for gps location string
         if o.verbose:
-            print "GPS tags added to EXIF for this file:" 
+            print "GPS tags added to EXIF for this file:"
             import yaml
             print yaml.dump(d)
 
     else:
         warn('Though a GPS position string ('+o.gps+') was provided, the file ('+o.image_filename+') already has a GPS tag. To overwrite or change this GPS position, pass the --overwrite-gps option in addition to the --gps position string.')
 
-if o.date and im.has_key(DATE_TAG_KEY):
-    im[tg.tagim.DATE_TAG_KEY]=tagim.parse_date(o.date)
+if o.date and tg.tagim.DATE_TAG_KEY in im:
+    im[tg.tagim.DATE_TAG_KEY] = tagim.parse_date(o.date)
 
 if o.verbose:
     if o.debug:
@@ -351,10 +348,10 @@ if o.verbose:
         tagim.display_meta_ascii(im)
 
 if o.show:
-    clargs = ['"{0}"'.format(o.image_filename),'']
-    cl = 'shotwell '+' '.join(clargs)
+    clargs = ['"{0}"'.format(o.image_filename), '']
+    cl = 'shotwell ' + ' '.join(clargs)
     if o.verbose:
-      print 'cl: '+cl
+        print 'cl: ' + cl
     os.system(cl)
 
 if o.background and os.path.exists(o.image_filename):
@@ -369,33 +366,33 @@ if o.splash and os.path.exists(o.image_filename):
     import subprocess
     print 'file: '+__file__
     if running_as_root(quiet=True):
-        subprocess.call(["python set_splash_background.py '"+o.image_filename+"'"])
+        subprocess.call(["python set_splash_background.py '" + o.image_filename + "'"])
         # tagim.set_splash_background(o.image_filename)
     else:
-        subprocess.call(['gksudo',"python set_splash_background.py '"+o.image_filename+"'"])
+        subprocess.call(['gksudo', "python set_splash_background.py '" + o.image_filename + "'"])
 
 if o.dry_run:
-    print(o.image_filename) # just print out the file name in case tagim was just used to find out the file path for the desktop image
+    print(o.image_filename)  # just print out the file name in case tagim was just used to find out the file path for the desktop image
     # only useful in combination with -q
 else:
-    if o.tag or o.comment or o.date or o.gps: # or o.angle or o.flip: # but im.write() happens within tagim.rotate_image function already
+    if o.tag or o.comment or o.date or o.gps:  # or o.angle or o.flip: # but im.write() happens within tagim.rotate_image function already
         if o.verbose:
             print 'Writing meta data to file at ' + o.image_filename
         im.write()
-    else: 
+    else:
         if o.verbose:
             print 'No need to write meta data to file at ' + o.image_filename
     if o.email_to:
         if not o.email_body:
             # use the revised comment field, including tags as the body of the e-mail
             o.email_body = im.comment
-        print 'Composing an email to',o.email_to,'from',o.email_from,'with attachment',o.image_filename,'using username',o.email_user,'on server',o.email_server
-        print '          Email body:',o.email_body
+        print 'Composing an email to', o.email_to, 'from', o.email_from, 'with attachment', o.image_filename, 'using username', o.email_user, 'on server', o.email_server
+        print '          Email body:', o.email_body
         # TODO: add command line options for SMTP server selection and/or settings (--smpt=URL+port or --use-postfix or --use-local)
         import tg.mail
         if not o.email_pw:
             import getpass
-            print "Please enter your password for your",o.email_user,"account at",o.email_server
+            print "Please enter your password for your", o.email_user, "account at", o.email_server
             o.email_pw=getpass.getpass()
         # TODO: confirm the contents of the e-mail and preview the image before sending (python gtk dialog box with thumbnail? html page with email and embedded image?)
         tg.mail.send(to          = o.email_to,
@@ -407,5 +404,4 @@ else:
                      server      = o.email_server,
                      text        = o.email_body,
                      size        = o.email_res)
-
 
