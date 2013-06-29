@@ -101,7 +101,7 @@ class ShufflerThread(threading.Thread):
             if (time.time() - self.start_time) > self.dt:
                 self.start_time = time.time()
                 self.shuffle_background()  # ignores o.N2
-                self.event.wait(300)
+                self.event.wait(1)
             time.sleep(1)
 
 
