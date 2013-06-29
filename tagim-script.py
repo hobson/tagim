@@ -24,17 +24,18 @@ TODO:
         + High priority for tags like location and people names and dates and unusual/rare words
 """
 
-# eliminates insidious integer division errors, otherwise '(1.0 + 2/3)' gives 1.0 (in python <3.0)
-from __future__ import division
-# TODO: optionparser deprecated
-from optparse import OptionParser
-import tg.tagim as tagim
-from warnings import warn
-from tg.utils import *  # zero_if_none, sign, running_as_root
-from tg.gtkutil import get_background_path
+# stdlib
+from __future__ import division  # divie integers like floats (don't round)
 import os
 import pyexiv2
 import sys
+from optparse import OptionParser  # TODO: optionparser deprecated
+from warnings import warn
+
+# tg
+import tg.tagim as tagim
+from tg.utils import *  # zero_if_none, sign, running_as_root
+from tg.gtkutil import get_background_path
 
 __version__ = '0.8.1'
 

@@ -25,17 +25,19 @@ TODO:
 #. /etc/profile
 #. /home/hobs/.profile
 
+# stdlib
 import time  # sleep
 import random  # randint
 import tg.tagim  # shuffle_background_photo
 from argparse import ArgumentParser
+import threading
 #import signal  # signal, SIGTERM
 #import multiprocessing  # Event
-
 import logging
+
+
 logging.basicConfig(filename='tagim.log', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
 
 p = ArgumentParser(description=__doc__.strip())
 p.add_argument(
@@ -56,9 +58,6 @@ o = p.parse_args()
 #print o
 # print vars(o)
 # better to use min/max for these so the order doesn't matter
-
-
-import threading
 
 
 class ShufflerThread(threading.Thread):

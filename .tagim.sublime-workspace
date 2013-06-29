@@ -7,6 +7,14 @@
 	},
 	"buffers":
 	[
+		{
+			"file": "looping_background_image_shuffler.py",
+			"settings":
+			{
+				"buffer_size": 3850,
+				"line_ending": "Unix"
+			}
+		}
 	],
 	"build_system": "",
 	"command_palette":
@@ -40,6 +48,18 @@
 	},
 	"file_history":
 	[
+		"/media/sda1/ssd/home/hobs/src/tagim/tg/tagim.py",
+		"/media/sda1/ssd/home/hobs/src/tagim/CHANGES.txt",
+		"/media/sda1/ssd/home/hobs/src/tagim/LICENSE.txt",
+		"/media/sda1/ssd/home/hobs/src/tagim/README.md",
+		"/media/sda1/ssd/home/hobs/src/tagim/tagim",
+		"/media/sda1/ssd/home/hobs/src/tagim/__init__.py",
+		"/media/sda1/ssd/home/hobs/src/tagim/compose_changelog.py",
+		"/media/sda1/ssd/home/hobs/src/tagim/looping_background_image_shuffler.py",
+		"/media/sda1/ssd/home/hobs/src/tagim/tg/utils.py",
+		"/media/sda1/ssd/home/hobs/src/tagim/tagim-script.py",
+		"/media/sda1/ssd/home/hobs/src/tagim/tg/tagim.py~",
+		"/media/sda1/ssd/home/hobs/src/tagim/setup.py",
 		"/media/sda1/ssd/home/hobs/src/udacity/aima/utils.py",
 		"/usr/share/applications/sublime.desktop",
 		"/usr/share/applications/sublime.desktop~",
@@ -61,6 +81,7 @@
 		"height": 0.0,
 		"where_history":
 		[
+			"*.py",
 			""
 		]
 	},
@@ -69,6 +90,14 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"os.path.",
+			"path(",
+			"print fil",
+			"print o.f",
+			"print o",
+			"print",
+			"ValueError",
+			"ExifVal",
 			"name",
 			"known_",
 			"host",
@@ -92,8 +121,126 @@
 	"groups":
 	[
 		{
+			"selected": 0,
 			"sheets":
 			[
+				{
+					"buffer": 0,
+					"file": "looping_background_image_shuffler.py",
+					"settings":
+					{
+						"buffer_size": 3850,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3160,
+								3160
+							]
+						],
+						"settings":
+						{
+							"annotations":
+							[
+								"TODO",
+								"README",
+								"FIXME"
+							],
+							"csslint_options":
+							{
+								"adjoining-classes": "warning",
+								"box-model": true,
+								"box-sizing": "warning",
+								"compatible-vendor-prefixes": "warning",
+								"display-property-grouping": true,
+								"duplicate-background-images": "warning",
+								"duplicate-properties": true,
+								"empty-rules": true,
+								"errors": true,
+								"fallback-colors": "warning",
+								"floats": "warning",
+								"font-faces": "warning",
+								"font-sizes": "warning",
+								"gradients": "warning",
+								"ids": "warning",
+								"import": "warning",
+								"important": "warning",
+								"known-properties": true,
+								"outline-none": "warning",
+								"overqualified-elements": "warning",
+								"qualified-headings": "warning",
+								"regex-selectors": "warning",
+								"rules-count": "warning",
+								"shorthand": "warning",
+								"star-property-hack": "warning",
+								"text-indent": "warning",
+								"underscore-property-hack": "warning",
+								"unique-headings": "warning",
+								"universal-selector": "warning",
+								"vendor-prefix": true,
+								"zero-units": "warning"
+							},
+							"gjslint_ignore":
+							[
+								110
+							],
+							"gjslint_options":
+							[
+							],
+							"javascript_linter": "jshint",
+							"jshint_options":
+							{
+								"browser": true,
+								"evil": true,
+								"regexdash": true,
+								"sub": true,
+								"trailing": true,
+								"wsh": true
+							},
+							"pep8": true,
+							"pep8_ignore":
+							[
+								"E501"
+							],
+							"perl_linter": "perlcritic",
+							"pyflakes_ignore":
+							[
+							],
+							"pyflakes_ignore_import_*": true,
+							"sublimelinter": true,
+							"sublimelinter_delay": 2,
+							"sublimelinter_disable":
+							[
+							],
+							"sublimelinter_executable_map":
+							{
+							},
+							"sublimelinter_fill_outlines": false,
+							"sublimelinter_gutter_marks": true,
+							"sublimelinter_gutter_marks_theme": "simple",
+							"sublimelinter_mark_style": "none",
+							"sublimelinter_notes": false,
+							"sublimelinter_objj_check_ascii": false,
+							"sublimelinter_popup_errors_on_save": false,
+							"sublimelinter_syntax_map":
+							{
+								"C++": "c",
+								"Python Django": "python",
+								"Ruby on Rails": "ruby"
+							},
+							"sublimelinter_wrap_find": true,
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 936.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				}
 			]
 		}
 	],
@@ -157,6 +304,6 @@
 	"show_open_files": false,
 	"show_tabs": true,
 	"side_bar_visible": true,
-	"side_bar_width": 150.0,
+	"side_bar_width": 290.0,
 	"status_bar_visible": true
 }

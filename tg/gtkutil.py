@@ -28,7 +28,7 @@ def get_background_image_path():
 
     >>> os.path.isfile(get_background_image_path())
     True"""
-    print gsettings.get_string('picture-uri')
+    # print gsettings.get_string('picture-uri')
     return get_paths.normalize_path(gsettings.get_string('picture-uri'))
 get_background_path = get_background_image_path
 get_desktop_background_path = get_background_image_path

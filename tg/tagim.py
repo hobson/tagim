@@ -40,16 +40,18 @@ import pyexiv2
 
 # tg
 import tg
+
+
 from tg.utils import *  # zero_if_none, sign
 import tg.get_paths
 from tg.regex_patterns import POINT_PATTERN, DATETIME_PATTERN, RE_TAGIM_TAG
 import tg.nlp as nlp
-
 import tg.gtkutil as gtk
 
 
 __version__ = '0.8.1'
 (user, home) = tg.user_home()
+
 
 # I can't imagine GPS positions ever needing to be recorded better
 #  than a couple tenths of a milimeter (an arcsecond is about 1.7 meters)
@@ -118,6 +120,7 @@ model_byline = {'Canon PowerShot S300': ['Hobson', 'Larissa'], 'COOLPIX L18': ['
 DBG_PATH = os.path.realpath(os.path.join(home, 'Pictures', 'desktop_background_image_copy.jpg'))
 DBG_PATH = gtk.get_background_path() or DBG_PATH or 'desktop_background_image_copy.jpg'
 DBG_CATALOG_PATH = os.path.realpath(os.path.join(home, '.desktop_slide_show_catalog.txt'))
+
 
 # use tg.get_paths.find_project_path or xapian (tracker desktop search db) similar to find a folder containing a lot of jpgs
 DBG_PHOTOS_PATH = tg.get_paths.normalize_path(os.path.join(home, 'Pictures'))
@@ -510,7 +513,7 @@ def exif_unrationalize_gps(gps_exif_dict):
                 values[label] += (f / float(v)) / multiplier
                 multiplier *= 60.0
             odd *= -1
-            print 'v,numerator,multiplier,toggle,adder,value', v, f, multiplier, odd, f, '/', float(v), '/', multiplier, values[label]
+#            print 'v,numerator,multiplier,toggle,adder,value', v, f, multiplier, odd, f, '/', float(v), '/', multiplier, values[label]
 #			print '---------------------'
     return(values)
 
@@ -626,8 +629,8 @@ def shuffle_background_photo(image=''):
     if image and os.path.isfile(image):
         shutil.copy(os.path.realpath(image), DBG_PATH)  # overwrite the existing background image
         msg = "{0}:{1}:\n  Copied-designated image file, '{2}', to desktop background image location.".format(__file__, __name__, image)
-        print >> dbg_log_file, msg
-        print >> dbg_log_file, image
+        dbg_log_file.write(msg + '\n')
+        dbg_log_file.write(image + '\n')
         db_log_file.write(str(image) + '\n')
         dbg_log_file.close()
         db_log_file.close()
@@ -699,8 +702,8 @@ def image_path_from_log(sequence_num=None):
 def image_path():
     path_log = image_path_from_log()
     path_gnome = gtk.desktop_image_path()
-    print 'image_path_from_log():   ' + path_log + "\n"
-    print 'image_path_from_gnome(): ' + path_gnome + "\n"
+    #print 'image_path_from_log():   ' + path_log + "\n"
+    #print 'image_path_from_gnome(): ' + path_gnome + "\n"
 
     if identical_images(path_log, path_gnome):
         return path_log
@@ -802,9 +805,11 @@ compare_images = identical_images
 #			for filename in fnmatch.filter(files, pat ):
 #				clean_tags( os.path.join(base_dir, filename) )
 
+
 def test():
     import doctest
     doctest.testmod()
+
 
 if __name__ == "__main__":
     _test()

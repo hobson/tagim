@@ -21,7 +21,6 @@ def test(examples=None):
 def get_path(string, stripit=stripit, quote_char=quote_char):
     """Convert URI to normal file system path, transforming indentation, quotes, and %-escaped characters, if necessary"""
     stripped = string.strip()
-    print stripped
     if stripped.startswith(uri_type):
         indentation = ''
         if not stripit:

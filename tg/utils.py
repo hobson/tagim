@@ -41,18 +41,19 @@ def multiline_replace_in_file(search_pattern, replacement_pattern, fname):
         return
     s = re.sub(search_pattern, replacement_pattern, s, re.MULTILINE)
     print s
-    with open(fname,'w') as f:
+    with open(fname, 'w') as f:
         f.write(s)
+
 
 TEXTCHARS = ''.join(map(chr, [7, 8, 9, 10, 12, 13, 27] + range(0x20, 0x100)))
 is_binary_string = lambda bytes: bool(bytes.translate(None, TEXTCHARS))
 
 
 def replace_in_file(search_pattern, replacement_pattern, fname,
-                    verbose=True, interactive=True, tmp_file_suffix=".tg.utils.replace_in_file.tmp", dry_run=False,binary=False):
+                    verbose=True, interactive=True, tmp_file_suffix=".tg.utils.replace_in_file.tmp", dry_run=False, binary=False):
     """Replace all occurrences of a search pattern in a single file
 
-    Loosely modeled after ideas from 
+    Loosely modeled after ideas from
     <http://stackoverflow.com/questions/1597649/replace-strings-in-files-by-python>
 
     >>> replace_in_file('my_password', 'REDACTED_PASSWORD', '~/.bash_history')
@@ -73,7 +74,7 @@ def replace_in_file(search_pattern, replacement_pattern, fname,
                 return
             if search_pattern.search(line):
                 if verbose:
-                    print "First found the requested text, "+repr(search_pattern.pattern)+", on line %d " % l
+                    print "First found the requested text, " + repr(search_pattern.pattern)+", on line %d " % l
                 found = 1
                 break
         if not found:
@@ -81,17 +82,17 @@ def replace_in_file(search_pattern, replacement_pattern, fname,
                 print "Search pattern "+repr(search_pattern.pattern)+" not found in file path "+repr(fname)+'.'
             return
     found = 0
-    with open(fname) as fin: # like fin.seek(0)
+    with open(fname) as fin:  # like fin.seek(0)
         out_fname = fname + tmp_file_suffix
         # FIXME: use tempfile module or some other means of generating a unique tmp file
         # FIXME: don't overwrite existing file if exists, raise exception
         with open(out_fname, "w") as fout:
             for line in fin:
-                if not isinstance(line,(str,unicode)) or is_binary_string(line): # FIXME, currently can't read and write binary strings
-                    continue # abort for unicode and binary, for now
-                (s,n) = search_pattern.subn(replacement_pattern, line)
+                if not isinstance(line, (str, unicode)) or is_binary_string(line):  # FIXME, currently can't read and write binary strings
+                    continue  # abort for unicode and binary, for now
+                (s, n) = search_pattern.subn(replacement_pattern, line)
                 if (verbose or interactive) and n:
-                    print 'Found {0} occurences on line {1}'.format(n,l)
+                    print 'Found {0} occurences on line {1}'.format(n, l)
                     print '  WAS: '+line
                     print '   IS: '+s
                 if interactive:
@@ -238,13 +239,13 @@ def launch(path, operation='open', gui=True, fallback=True):
 # based on http://code.activestate.com/recipes/499305-locating-files-throughout-a-directory-tree/
 def locate(pattern, basepath='', regex=False, matchpath=False):
     """Locate all files matching pattern below supplied base path.
-    
+
     >>> locate('/tg/utils.py',basepath='/',matchpath=True)
     <generator object ...>
-    
+
     matchpath: Include path string matches in addition to filename matches
     regex: Pattern is interpreted as a regular expression instead of a Unix-style file glob
-    
+
     TODO:
         use posix 'slocate --existing' command if availble for faster results
         update locate or slocate database if it's stale
@@ -255,8 +256,8 @@ def locate(pattern, basepath='', regex=False, matchpath=False):
     basepath = basepath if isinstance(basepath,str) else ''
     basepath = basepath or ''
     # no need to assign to os.curdir or Env.CWD because os.path.abspath('') does so by default
-    basepath = basepath if (not basepath=='.' and not basepath=='.'+os.path.sep) else ''  # os.curdir
-    if basepath == os.path.sep or basepath=='/':
+    basepath = basepath if (not basepath == '.' and not basepath=='.'+os.path.sep) else ''  # os.curdir
+    if basepath == os.path.sep or basepath == '/':
         basepath = os.path.sep
     basepath = os.path.abspath(os.path.normpath(basepath))
     # print 'basepath = '+repr( basepath )
@@ -270,16 +271,13 @@ def locate(pattern, basepath='', regex=False, matchpath=False):
         matcher_arg = 0 # for re.search() this is the position in the string to start the search
     for path, dirs, files in os.walk(os.path.abspath(basepath)):
         files = files if not matchpath else [os.path.join(path, fn) for fn in files]
-        # print repr(files)
-        fullpaths=[]
+        fullpaths = []
         for fp in files:
             if matcher(fp, matcher_arg):
                 fullpaths += [fp]
         for fullpath in fullpaths:
-            print fullpath
             if fullpath:
                 fullpath = fullpath if matchpath else os.path.join(path,fullpath)
-                print fullpath
                 yield fullpath
 
 #def locate(path_pattern,base_path=''):
@@ -292,8 +290,7 @@ def locate(pattern, basepath='', regex=False, matchpath=False):
 #                                      stdin=subprocess.DEVNULL,
 #                                      stdout=subprocess.DEVNULL, 
 #                                      stderr=subprocess.DEVNULL)
-                                  
-                            
+
 
 # from http://docs.python.org/faq/library#how-do-i-get-a-single-keypress-at-a-time
 def wait_for_key(message='Hit Y <CTRL-C> to cancel, any other key to continue...',verbose=False):
@@ -471,6 +468,7 @@ def path_here():
     en = Env()
     return(en.module_path,en.module_dir,en.work_dir)
 
+
 # not real sure why you can't just call 'assert expected==actual, message'
 # http://stackoverflow.com/questions/1179096/suggestions-for-python-assert-function
 def validate(expected, actual=True, type='==', message='', trans=(lambda x: x)):
@@ -481,6 +479,7 @@ def validate(expected, actual=True, type='==', message='', trans=(lambda x: x)):
     assert m[type](trans(expected), trans(actual)), 'Expected: %s, Actual: %s, %s' % (expected, actual, message)
 def validate_str(expected, actual=True, type='', message=''):
     assert_validation(expected, actual, type, message, trans=str)
+
 
 def basic_arguments(p):
     from optparse import OptionParser
@@ -501,6 +500,7 @@ def basic_arguments(p):
     else:
         warn('Basic options (arguments) were not added to the OptionParser object because no object named "p" exists in the local namespace.')
 
+
 def zero_if_none(x):
     return x or 0
 #	if not x:
@@ -516,12 +516,14 @@ def running_as_root(quiet=False):
         warn(msg)
     return False
 
+
 # unlike math.copysign, this may return +1 for -0.0 (on systems that have negative zero)
 def sign(f):
     s = type(f)(1)
     if f<0:
         s *= -1
     return s
+
 
 def make_same_type_as(obj1,obj2):
   return type(obj2)(obj1)
@@ -544,6 +546,7 @@ def flatten(list_o_lists):
                 yield subel
         else:
             yield el
+
             
 def flattrans(list_o_lists):
     """Flatten by 1 dimension and transpose 1st two dims of a multi-dim iterable (list/array, tuple, dict) to N-1-D, where N is the dimension of the list_o_lists.
@@ -563,25 +566,28 @@ def flattrans(list_o_lists):
     else:
         yield list_o_lists
 
+
 # more complicated "flatten", but effective answer (doesn't seem like it should work for other iterables like dict and set, but does
 # http://stackoverflow.com/questions/2158395/flatten-an-irregular-list-of-lists-in-python/2158532#215853
 flatten_lists = lambda *n: (e for a in n
     for e in (flatten_lists(*a) if isinstance(a, (tuple, list)) else (a,)))
 
+
 # FIXME: NOT_IMPLEMENTED
 def deep_flatten(list_o_lists):
     f = [x for x in flatten(list_o_lists)]
 
-def size(lol,d=None):
+
+def size(lol, d=None):
     """List lengths of first elements for each dimension of a multi-D Iterable
-    
+
     Second optional argument, `d`, is a list of dimensions that is appended and returned.
     Should be a hidden, system parameter, not a user argument. It's just used to make this function
     work recursively on deep multi-dimensional collections.Iterables
-    
+
     TODO: calculate the maximum lengths for jagged lists of lists rather than the
           length of the first element
-    
+
     >>> size([range(3),range(4)]):
     (2, 4)
     >>> size(range(3)):
@@ -608,9 +614,10 @@ def size(lol,d=None):
             d.extend(size(lol[0],None))
     return tuple(d)
 
+
 def size2(x, errors=True, verbose=True):
     """Return a tuple of 2 dimensions regardless of the size of the lists in x.
-    
+
     >>> size2([[1,2,3],[4,5]])
     (2, 3)
     >>> size2([[[[0,1],[2,3]],[4,5]],[6,7,8,9]], verbose=False, errors=True)
@@ -627,27 +634,28 @@ def size2(x, errors=True, verbose=True):
     ValueError: Nested iterable contained less than 2 dimensions. Size: 3
     """
     NM = size(x)
-    print 'size(NM)',NM
+    # print 'size(NM)', NM
     D = 1
     try:
         D = len(NM)
-        print 'D',D
+        # print 'D', D
     except TypeError:
         pass
-    if D==2:
+    if D == 2:
         return NM[0], NM[1]
-    if D>2:
+    if D > 2:
         if verbose:
             warn("Nested iterable contained more than 2 dimensions but only 2 requested. Size: "+str(NM))
         return NM[0], NM[1]
-    if D<2:
+    if D < 2:
         if errors:
             raise ValueError("Nested iterable contained less than 2 dimensions. Size: "+str(NM))
         elif verbose:
             warn("Nested iterable contained less than 2 dimensions and 2 requested. Size: "+str(NM))
-    if D==1:
+    if D == 1:
         return NM, 0
     return 0, 0
+
 
 def size3(x, errors=True, verbose=True):
     """Return a tuple of 3 dimensions regardless of the size of the lists in x.
@@ -658,20 +666,20 @@ def size3(x, errors=True, verbose=True):
         D = len(NM)
     except TypeError:
         pass
-    if D==3:
+    if D == 3:
         return NM[0], NM[1], NM[2]
-    elif D>3:
+    elif D > 3:
         if verbose:
             warn("Nested iterable contained more than 3 dimensions but only 3 requested. Size: "+str(NM))
         return NM[0], NM[1], NM[2]
-    elif D<3:
+    elif D < 3:
         if errors:
             raise ValueError("Nested iterable contained less than 3 dimensions. Size: "+str(NM))
         elif verbose:
             warn("Nested iterable contained less than 3 dimensions and 3 requested. Size: "+str(NM))
-    if D==2:
+    if D == 2:
         return NM[0], NM[1], 0
-    elif D==1:
+    elif D == 1:
         return NM, 0, 0
     return 0, 0, 0
 
@@ -696,16 +704,16 @@ def size3(x, errors=True, verbose=True):
 #    if setting == setting.upper():
 #        locals()[setting] = getattr(config_module, setting)
 
-def merge_settings( new, old=None, allcaps=True, doubleunderscore=False, verbose=2, overwrite=True, depth=100):
+def merge_settings(new, old=None, allcaps=True, doubleunderscore=False, verbose=2, overwrite=True, depth=100):
     """
     Merge two namespaces (modules), optionally ignoring non-ALL-CAPS names
-    
+
     If old is None then this function attempts to use a settings (settings.py)
     module from the python path.
-    
+
     Duplicate keys (variable/atribute names) are recursively merged to 
     deal with nested dictionaries (dict of dict of dict ...)
-    
+
     Lists and tuples are appended/extended.
     Dicts and sets are updated/unioned
     """
@@ -715,143 +723,145 @@ def merge_settings( new, old=None, allcaps=True, doubleunderscore=False, verbose
         warn('no old module supplied, so loading the nearest settings.py')
         import settings as old
     import types
-    scalar_type = (str, float, int, bool) # TODO: what about types.ClassType or types.ObjectType or types.StringTypes
+    # NOT USED:
+    # scalar_type = (str, float, int, bool)  # TODO: what about types.ClassType or types.ObjectType or types.StringTypes
     # TODO: check for empty new dicts and either delete or don't update the old dict
-    if verbose>=2:
+    if verbose >= 2:
         print('old='+repr(type(old)))
         print('new='+repr(type(new)))
-    #print new.__dict__
-    if isinstance( old, types.ModuleType):
+    # print new.__dict__
+    if isinstance(old, types.ModuleType):
         dold = old.__dict__
-    elif isinstance( old, dict):
-        dold = old # can't deepcopy dicts with __new__ method
-    else: #unnecessary? 
-        dold = copy.deepcopy(dict(old)) # deepcopy should be unnecessary
-    if isinstance( new, types.ModuleType):
+    elif isinstance(old, dict):
+        dold = old  # can't deepcopy dicts with __new__ method
+    else:  # unnecessary?
+        dold = copy.deepcopy(dict(old))  # deepcopy should be unnecessary
+    if isinstance(new, types.ModuleType):
         dnew = new.__dict__
-    elif isinstance( new, dict):
-        dnew = new # can't deepcopy dicts with __new__ method
-    else: #unnecessary?
-        dnew = copy.deepcopy(dict(new)) # deepcopy should be unnecessary
-    if isinstance(old, dict) and isinstance(new,dict) and isinstance( dold, dict ) and isinstance( dnew, dict ):
-        if verbose>=2:
+    elif isinstance(new, dict):
+        dnew = new  # can't deepcopy dicts with __new__ method
+    else:  # unnecessary?
+        dnew = copy.deepcopy(dict(new))  # deepcopy should be unnecessary
+    if isinstance(old, dict) and isinstance(new, dict) and isinstance(dold, dict) and isinstance(dnew, dict):
+        if verbose >= 2:
             print 'merging 2 modules'
         # merge non-allcaps stuff within dicts, because this is likely the second (recursive) call to merge_settings
-        merge_iter( dnew, dold, allcaps=False, doubleunderscore=True, verbose=verbose, 
-                    overwrite=overwrite, depth=depth)
-    elif isinstance( dold, dict ) and isinstance( dnew, dict ):
-        if verbose>=2:
+        merge_iter(dnew, dold, allcaps=False, doubleunderscore=True, verbose=verbose,
+                   overwrite=overwrite, depth=depth)
+    elif isinstance(dold, dict) and isinstance(dnew, dict):
+        if verbose >= 2:
             print 'merging 2 modules'
         # when non-dicts are passed to merge_settings, this is a clue that this is the first (nonrecursive) call, so ingnore allcaps (if requested) at the top level
-        merge_settings( dnew, dold, allcaps=allcaps, doubleunderscore=True, verbose=verbose, 
-                    overwrite=overwrite, depth=depth)
+        merge_settings(dnew, dold, allcaps=allcaps, doubleunderscore=True, verbose=verbose,
+                       overwrite=overwrite, depth=depth)
     # FIXME: watch out! you're replacing hidden module elements like __name__ __file__ etc!!!!
-    if isinstance( old, types.ModuleType):
-        if verbose>=2:
+    if isinstance(old, types.ModuleType):
+        if verbose >= 2:
             print 'setting the old module to contain the values from the new merged dict'
-        for k,v in dold.items():
-            if not ( k.startswith('__') and k.endswith('__') ):
-                merge_iter( dnew, dold, allcaps, doubleunderscore, verbose=verbose, 
-                            overwrite=overwrite, depth=depth)
-        old.__dict__ = dold # is this enough to reset all the values?
+        for k, v in dold.items():
+            if not (k.startswith('__') and k.endswith('__')):
+                merge_iter(dnew, dold, allcaps, doubleunderscore, verbose=verbose, 
+                           overwrite=overwrite, depth=depth)
+        old.__dict__ = dold  #  is this enough to reset all the values?
     else:
-        if verbose>=2:
+        if verbose >= 2:
             print 'setting the old dict to a new merged dict'
-        old = dold # no deep copy because a copy was already made
+        old = dold  # no deep copy because a copy was already made
     return old
 
+
 # designed for django settings.py files, but should work with any namespace merging of only all-caps variables
-def merge_iter( new, old, allcaps=True, doubleunderscore=False, verbose=2, overwrite=True, depth=100):
+def merge_iter(new, old, allcaps=True, doubleunderscore=False, verbose=2, overwrite=True, depth=100):
     """
     Merge two namespaces or dictionaries, optionally ignoring non-ALL-CAPS names
-    
+
     Duplicate keys (variable/atribute names) are recursively merged to 
     deal with nested dictionaries (dict of dict of dict ...)
-    
+
     Lists are appended/extended.
 
     TODO:
         mimic the Yii associative array merge function, including specification of prefixes and suffixes to skip
     """
-    import types,copy
-    scalar_type   = (str, float, int, bool, types.MethodType) # TODO: what about types.ClassType or types.ObjectType or types.StringTypes
-    iterable_type = (list,tuple,set)
-    if isinstance( old, types.ModuleType ) or isinstance( new, types.ModuleType ):
+    import types
+    import copy
+    scalar_type = (str, float, int, bool, types.MethodType)  # TODO: what about types.ClassType or types.ObjectType or types.StringTypes
+    iterable_type = (list, tuple, set)
+    if isinstance(old, types.ModuleType) or isinstance(new, types.ModuleType):
         print 'aborting merge of 2 modules'
         return old
-    elif isinstance( old, dict ) and isinstance( new, dict ):
-        if verbose>=2:
+    elif isinstance(old, dict) and isinstance(new, dict):
+        if verbose >= 2:
             print 'merging two dicts'
-        for k,v in new.items():
-            if verbose>=2:
-                print 'merging key ',k
+        for k, v in new.items():
+            if verbose >= 2:
+                print 'merging key %s' % repr(k)
             # problem with this is that when inside a dict we WANT to merge non-allcaps stuff
-            if (not allcaps or k==k.upper()) and ( doubleunderscore or not ( k.startswith('__') and k.endswith('__') )):
+            if (not allcaps or k == k.upper()) and (doubleunderscore or not (k.startswith('__') and k.endswith('__'))):
                 if k in old:
-                    if depth>0:
-                        old[k] = merge_iter( new[k], old[k], allcaps, doubleunderscore,
-                                             verbose=verbose, overwrite=overwrite, depth=depth)
+                    if depth > 0:
+                        old[k] = merge_iter(new[k], old[k], allcaps, doubleunderscore,
+                                            verbose=verbose, overwrite=overwrite, depth=depth)
                     elif overwrite:
                         old[k] = copy.deepcopy(new[k])
                 else:
                     # FIXME: deepcopy faults on objects with unsafe attributes like __new__!
-                    old[k] = copy.deepcopy(new[k]) # deepcopy in case the element is an object/dict, 
-            elif verbose>=2:
+                    old[k] = copy.deepcopy(new[k])  # deepcopy in case the element is an object/dict,
+            elif verbose >= 2:
                 print 'key value ignored because it looks like a protected or non-user object'
                 # don't do anythin with double underscore or mixed-case variables if not flagged to merge them
     # merge lists by unioning -- don't add duplicates
-    elif isinstance( old, list ) and isinstance( new, iterable_type ): # and not isinstance( new, (str,unicode)):
-        if isinstance(new,tuple):
-            print 'merging a tuple into a list. list ='+repr(old)
-            
+    elif isinstance(old, list) and isinstance(new, iterable_type):  # and not isinstance( new, (str,unicode)):
+        if isinstance(new, tuple):
+            print 'merging a tuple into a list. list =' + repr(old)
         #TODO: convert to sets, append, then convert back to list?
-        for i,v in enumerate(new):
-            if verbose>=2:
-                print 'merging list item',i
+        for i, v in enumerate(new):
+            if verbose >= 2:
+                print 'merging list item', i
             # FIXME: the exact same object instance (e.g. dict) might not exist in the old
             #        but you still want to merge dicts rather than append a new dict
             if not v in old:
-                if verbose>=2:
-                    print 'appending list item',i
+                if verbose >= 2:
+                    print 'appending list item', i
                 old.append(v)
-        if isinstance(new,tuple):
-            print 'merged tuple into a list. list ='+repr(old)
-    elif isinstance( old, tuple ) and isinstance( new, iterable_type ): # and not isinstance( new, (str,unicode)):
+        if isinstance(new, tuple):
+            print 'merged tuple into a list. list =' + repr(old)
+    elif isinstance(old, tuple) and isinstance(new, iterable_type):  # and not isinstance( new, (str,unicode)):
         #TODO: convert to sets, append, then convert back to list?
-        print 'old tuple'+repr(old)
-        for i,v in enumerate(new):
-            if verbose>=2:
-                print 'merging tuple item',i #,' value '+repr(v)
+        print 'old tuple' + repr(old)
+        for i, v in enumerate(new):
+            if verbose >= 2:
+                print 'merging tuple item', i  # ,' value '+repr(v)
             # FIXME: the exact same object instance (e.g. dict) might not exist in the old
             #        but you still want to merge dicts rather than append a new dict
             #print type(new)
             if not v in old:
-                if verbose>=2:
+                if verbose >= 2:
                     print 'appending the value'
-                tmp = old + (v,) # WARN: tuple(v) would turn a str into a tuple of chars
+                tmp = old + (v,)  # WARN: tuple(v) would turn a str into a tuple of chars
                 old = tmp
-        print 'new tuple'+repr(old)
+        print 'new tuple' + repr(old)
     # TODO: 4 DRY-up oportunities below
-    elif isinstance( old, tuple) and isinstance( new, scalar_type ): # even though strings are a tuple of characters this shouldn't mess up
-        if verbose>=2:
+    elif isinstance(old, tuple) and isinstance(new, scalar_type):  # even though strings are a tuple of characters this shouldn't mess up
+        if verbose >= 2:
             print 'appending a scalar '+repr(v)+' to a tuple'
         #TODO: convert to sets, append, then convert back to list?
-        tmp = old + (new,) # WARN: don't use tuple(new) because converts str to a tuple of chars, but parentheses (with comma) do not
+        tmp = old + (new,)  # WARN: don't use tuple(new) because converts str to a tuple of chars, but parentheses (with comma) do not
         old = tmp
-    elif isinstance( old, list ) and isinstance( new, scalar_type ):
-        if verbose>=2:
+    elif isinstance(old, list) and isinstance(new, scalar_type):
+        if verbose >= 2:
             print 'appending a scalar to a list'
         #TODO: convert to sets, append, then convert back to list?
         old.append(new)
-    elif isinstance( old, set ) and isinstance( new, scalar_type ):
-        if verbose>=2:
+    elif isinstance(old, set) and isinstance(new, scalar_type):
+        if verbose >= 2:
             print 'adding a scalar to a set'
         #TODO: convert to sets, append, then convert back to list?
         old.add(new)
-    elif isinstance( old, scalar_type ) and isinstance( new, scalar_type ):
-        if verbose>=2:
-            print 'replacing value '+repr(old)+' with value ' +repr(new)
-        old = new # TODO: is it OK to change the old type in addition to its value?
+    elif isinstance(old, scalar_type) and isinstance(new, scalar_type):
+        if verbose >= 2:
+            print 'replacing value ' + repr(old) + ' with value ' + repr(new)
+        old = new  # TODO: is it OK to change the old type in addition to its value?
     # FIXME: mismatched schemas (new and old elements not the same type and structure) may result in no change
     #print 'returning value '+repr(old)
     return old
