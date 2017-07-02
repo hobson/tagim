@@ -1,0 +1,50 @@
+#!/bin/sh
+# urlencode() {
+#     # urlencode <string>
+#     old_lc_collate=$LC_COLLATE
+#     LC_COLLATE=C
+    
+#     local length="${#1}"
+#     for (( i = 0; i < length; i++ )); do
+#         local c="${1:i:1}"
+#         case $c in
+#             [a-zA-Z0-9.~_-]) printf "$c" ;;
+#             *) printf '%%%02X' "'$c" ;;
+#         esac
+#     done
+    
+#     LC_COLLATE=$old_lc_collate
+# }
+
+alias urldecode='python -c "import sys, urllib; print urllib.unquote_plus(sys.argv[1])"'
+alias urlencode='python -c "import sys, urllib; print urllib.quote_plus(sys.argv[1])"'
+if [ "$#" -eq 1 ]; then
+  INTERVAL=$1
+else
+  INTERVAL=3600
+fi
+echo "Randomly rotating the desktop background wallpaper every ${INTERVAL} seconds beginning now..."
+WALLPAPER_LOCATION="/home/hobs/Dropbox/Camera Uploads"
+find "${WALLPAPER_LOCATION}" -type f -iname '*.jp*g' -o -iname '*.png' > /tmp/wallpapers.txt
+sleep 1s
+TOTAL=$(cat /tmp/wallpapers.txt | wc -l)
+while [ 1 ]
+do
+  RANDOM=$(awk ' BEGIN { srand(); printf( "%d\n", 256 * 256 * 256 * 256 * rand()); }')
+  LINE=$((RANDOM%TOTAL+1))
+  echo "Chose wallpaper line ${LINE}/${TOTAL}"
+  WALLPAPER=$(sed -n "$LINE"p /tmp/wallpapers.txt)
+  WALLPAPER_URI=$(urlencode "${WALLPAPER}")
+  if [ "$WALLPAPER" = "" ]; then
+    >&2 echo "Used up all ${TOTAL} image files found in: '${WALLPAPER_LOCATION}'"
+  elif [ -f "$WALLPAPER" ]; then
+    echo "Setting wallpaper picture_filename to ${WALLPAPER}"
+    chmod 666 "${WALLPAPER}"
+    gsettings set org.gnome.desktop.background picture-uri "file://${WALLPAPER}"
+    # gconftool-2 --type string --set /desktop/gnome/background/picture_filename "${WALLPAPER}"
+  	sleep "${INTERVAL}s"
+  else
+    >&2 echo "File not found: '${WALLPAPER}'"
+    sleep 1s
+  fi
+done
