@@ -24,7 +24,7 @@ else
   INTERVAL=3600
 fi
 echo "Randomly rotating the desktop background wallpaper every ${INTERVAL} seconds beginning now..."
-WALLPAPER_LOCATION="/home/hobs/Dropbox/Camera Uploads"
+WALLPAPER_LOCATION="$HOME/Dropbox/Camera Uploads"
 find "${WALLPAPER_LOCATION}" -type f -iname '*.jp*g' -o -iname '*.png' > /tmp/wallpapers.txt
 sleep 1s
 TOTAL=$(cat /tmp/wallpapers.txt | wc -l)
