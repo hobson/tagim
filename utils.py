@@ -3,12 +3,11 @@
 import os
 import sys
 import ctypes
+import subprocess
+from gi.repository import Gio  # pip3 install pygobject  #?? sudo apt install gnome-devel
 
 
 def change_gnome_wallpaper(path):
-    # gnome-python-2.0 package on pypi must be compiled
-    from gi.repository import Gio
-
     pic_name = sys.argv[1]
     settings = Gio.Settings.new("org.gnome.desktop.background")
     settings.set_string("picture-uri", "file://" + os.getcwd() + "/" + pic_name)
@@ -42,21 +41,21 @@ def get_desktop_environment(self):
             elif "xfce" in desktop_session or desktop_session.startswith("xubuntu"):
                 return "xfce4"
             elif desktop_session.startswith("ubuntu"):
-                return "unity"       
+                return "unity"
             elif desktop_session.startswith("lubuntu"):
-                return "lxde" 
-            elif desktop_session.startswith("kubuntu"): 
-                return "kde" 
-            elif desktop_session.startswith("razor"): # e.g. razorkwin
+                return "lxde"
+            elif desktop_session.startswith("kubuntu"):
+                return "kde"
+            elif desktop_session.startswith("razor"):  # e.g. razorkwin
                 return "razor-qt"
-            elif desktop_session.startswith("wmaker"): # e.g. wmaker-common
+            elif desktop_session.startswith("wmaker"):  # e.g. wmaker-common
                 return "windowmaker"
         if os.environ.get('KDE_FULL_SESSION') == 'true':
             return "kde"
         elif os.environ.get('GNOME_DESKTOP_SESSION_ID'):
-            if not "deprecated" in os.environ.get('GNOME_DESKTOP_SESSION_ID'):
+            if "deprecated" not in os.environ.get('GNOME_DESKTOP_SESSION_ID'):
                 return "gnome2"
-        #From http://ubuntuforums.org/showthread.php?t=652320
+        # From http://ubuntuforums.org/showthread.php?t=652320
         elif self.is_running("xfce-mcs-manage"):
             return "xfce4"
         elif self.is_running("ksmserver"):
@@ -65,12 +64,12 @@ def get_desktop_environment(self):
 
 
 def is_running(self, process):
-    #From http://www.bloggerpolis.com/2011/05/how-to-check-if-a-process-is-running-using-python/
+    # From http://www.bloggerpolis.com/2011/05/how-to-check-if-a-process-is-running-using-python/
     # and http://richarddingwall.name/2009/06/18/windows-equivalents-of-ps-and-kill-commands/
-    try: #Linux/Unix
-        s = subprocess.Popen(["ps", "axw"],stdout=subprocess.PIPE)
-    except: #Windows
-        s = subprocess.Popen(["tasklist", "/v"],stdout=subprocess.PIPE)
+    try:  # Linux/Unix
+        s = subprocess.Popen(["ps", "axw"], stdout=subprocess.PIPE)
+    except:  # Windows
+        s = subprocess.Popen(["tasklist", "/v"], stdout=subprocess.PIPE)
     for x in s.stdout:
         if re.search(process, x):
             return True
