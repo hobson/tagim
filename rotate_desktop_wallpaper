@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # urlencode() {
 #     # urlencode <string>
 #     old_lc_collate=$LC_COLLATE
@@ -15,36 +15,54 @@
     
 #     LC_COLLATE=$old_lc_collate
 # }
-
 alias urldecode='python -c "import sys, urllib; print urllib.unquote_plus(sys.argv[1])"'
 alias urlencode='python -c "import sys, urllib; print urllib.quote_plus(sys.argv[1])"'
+
+# export DBUS_SESSION_BUS_ADDRESS environment variable
+DBUS_SESSION_PID=$(pgrep gnome-session)
+export DBUS_SESSION_BUS_ADDRESS=$(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$DBUS_SESSION_PID/environ|cut -d= -f2-)
+export DISPLAY=':0'
+
+# echo $$ > /tmp/rotate_desktop_wallpaper.pid
+IMAGE_LIST_LOCATION="$HOME/wallpapers.txt"
 if [ "$#" -eq 1 ]; then
   INTERVAL=$1
+  WALLPAPER_LOCATION="/home/hobs/Dropbox/Camera Uploads"
+elif [ "$#" -eq 2 ]; then
+  INTERVAL=$1
+  WALLPAPER_LOCATION="$2"
 else
-  INTERVAL=3600
+  INTERVAL=0
+  WALLPAPER_LOCATION="/home/hobs/Dropbox/Camera Uploads"
 fi
-echo "Randomly rotating the desktop background wallpaper every ${INTERVAL} seconds beginning now..."
-WALLPAPER_LOCATION="$HOME/Dropbox/Camera Uploads"
-find "${WALLPAPER_LOCATION}" -type f -iname '*.jp*g' -o -iname '*.png' > /tmp/wallpapers.txt
+logger -p local0.notice -t INFO "Randomly rotating the desktop background wallpaper every ${INTERVAL} seconds, using images found in ${WALLPAPER_LOCATION}, beginning now..."
+find "${WALLPAPER_LOCATION}" -type f -iname '*.jp*g' -o -iname '*.png' > $IMAGE_LIST_LOCATION
 sleep 1s
-TOTAL=$(cat /tmp/wallpapers.txt | wc -l)
-while [ 1 ]
-do
+TOTAL=$(cat "$IMAGE_LIST_LOCATION" | wc -l)
+
+function update_wallpaper {
   RANDOM=$(awk ' BEGIN { srand(); printf( "%d\n", 256 * 256 * 256 * 256 * rand()); }')
   LINE=$((RANDOM%TOTAL+1))
-  echo "Chose wallpaper line ${LINE}/${TOTAL}"
-  WALLPAPER=$(sed -n "$LINE"p /tmp/wallpapers.txt)
-  WALLPAPER_URI=$(urlencode "${WALLPAPER}")
+  logger -p local0.notice -t INFO "Chose wallpaper line ${LINE}/${TOTAL}"
+  WALLPAPER=$(sed -n "$LINE"p "$IMAGE_LIST_LOCATION")
+  WALLPAPER_URI="file://${WALLPAPER}"
   if [ "$WALLPAPER" = "" ]; then
     >&2 echo "Used up all ${TOTAL} image files found in: '${WALLPAPER_LOCATION}'"
+    exit 1
   elif [ -f "$WALLPAPER" ]; then
-    echo "Setting wallpaper picture_filename to ${WALLPAPER}"
+    logger -p local0.notice -t INFO "Setting wallpaper picture_filename to ${WALLPAPER} with URI ${WALLPAPER_URI}"
     chmod 666 "${WALLPAPER}"
-    gsettings set org.gnome.desktop.background picture-uri "file://${WALLPAPER}"
+    gsettings set org.gnome.desktop.background picture-options "spanned"
+    gsettings set org.gnome.desktop.background picture-uri "${WALLPAPER_URI}"
     # gconftool-2 --type string --set /desktop/gnome/background/picture_filename "${WALLPAPER}"
-  	sleep "${INTERVAL}s"
   else
     >&2 echo "File not found: '${WALLPAPER}'"
-    sleep 1s
   fi
+}
+
+update_wallpaper
+until [ $((INTERVAL)) -eq 0 ]
+do
+  sleep "${INTERVAL}s"
+  update_wallpaper
 done

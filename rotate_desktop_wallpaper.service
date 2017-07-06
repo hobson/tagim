@@ -1,0 +1,14 @@
+[Unit]
+Description = Rotate wallpaper hourly
+After network.target = auditd.service
+
+[Service]
+Type = simple
+ExecStart = / usr / local / bin / start rotate_desktop_wallpaper.sh
+ExecStop = / usr / local / bin / stop rotate_desktop_wallpaper.sh
+ExecReload = / usr / local / bin / reload rotate_desktop_wallpaper.sh
+StandardOutput=syslog
+StandardError=syslog
+
+[Install]
+WantedBy = multi-user.target

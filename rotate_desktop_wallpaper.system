@@ -1,0 +1,14 @@
+[Unit]
+Description=Rotate wallpaper hourly
+After=syslog.target
+
+[Service]
+Type=simple
+User=hobs
+Group=hobs
+ExecStart=/usr/bin/rotate_desktop_wallpaper
+StandardOutput=syslog
+StandardError=syslog
+
+[Install]
+WantedBy=multi-user.target

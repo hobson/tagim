@@ -1,0 +1,11 @@
+[Unit]
+Description=Run service to rotate the desktop wallpaper hourly
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/rotate_desktop_wallpaper 3600
+Restart=no
+
+[Install]
+WantedBy=default.target
